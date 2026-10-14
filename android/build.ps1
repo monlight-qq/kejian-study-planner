@@ -51,7 +51,7 @@ if (!(Test-Path -LiteralPath $keystore)) {
     Invoke-Checked (Join-Path $JavaPath 'bin\keytool.exe') @('-genkeypair','-keystore',$keystore,'-storetype','PKCS12','-storepass:file',$passwordFile,'-alias','kejian','-keyalg','RSA','-keysize','3072','-validity','10000','-dname','CN=Kejian, OU=Mobile, O=Personal, C=CN','-noprompt')
 }
 if (!(Test-Path -LiteralPath $passwordFile)) { throw 'Signing password missing. Restore android/keys/password.txt.' }
-$apk = Join-Path $dist 'kejian-1.7.2.apk'
+$apk = Join-Path $dist 'kejian-1.7.3.apk'
 Invoke-Checked (Join-Path $toolDir 'apksigner.bat') @('sign','--ks',$keystore,'--ks-key-alias','kejian','--ks-pass',"file:$passwordFile",'--out',$apk,(Join-Path $build 'aligned.apk'))
 Invoke-Checked (Join-Path $toolDir 'apksigner.bat') @('verify','--verbose','--print-certs',$apk)
 Invoke-Checked (Join-Path $toolDir 'zipalign.exe') @('-c','-P','16','4',$apk)
@@ -76,6 +76,6 @@ try {
     if ($verification.Entries | Where-Object { $_.FullName.Contains('\') -or $_.FullName -match 'password|\.p12|\.java|\.ps1' }) { throw 'Invalid path or build-only files inside APK' }
 } finally { $verification.Dispose() }
 $checksum = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
-[IO.File]::WriteAllText((Join-Path $dist 'kejian-1.7.2.apk.sha256'),"$checksum  kejian-1.7.2.apk`n",[Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $dist 'kejian-1.7.3.apk.sha256'),"$checksum  kejian-1.7.3.apk`n",[Text.UTF8Encoding]::new($false))
 Write-Host "APK ready: $apk"
 Write-Host "SHA256: $checksum"

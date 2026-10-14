@@ -1,6 +1,6 @@
 {
   "name": "kejian-mobile",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "description": "课间：作业、复习与支持截图导入的课程表",
   "scripts": {"start": "node server.cjs", "test": "node --test tests/*.test.cjs", "check": "node --check app.js && node --check theme.js && node --check motion.js && node --check day-transfer.js && node --check course-schedule.js && node --check timetable.js && node --check date-picker.js && node --check course-import.js && node --check sw.js && node --check server.cjs", "build:apk": "powershell -ExecutionPolicy Bypass -File android/build.ps1"}

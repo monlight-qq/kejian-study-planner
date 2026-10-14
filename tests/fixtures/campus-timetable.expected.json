@@ -1,0 +1,15 @@
+[
+  {"weekday":1,"title":"概率与数理统计","periodStart":1,"periodEnd":2,"code":"23","location":"集贤楼(原西教2号"},
+  {"weekday":1,"title":"体育3","periodStart":5,"periodEnd":6,"code":"80","location":"彭家坪田径场"},
+  {"weekday":2,"title":"算法与数据结构","periodStart":1,"periodEnd":2,"code":"01","location":"蔚云楼(原西教6号"},
+  {"weekday":2,"title":"电路与电子技术","periodStart":3,"periodEnd":4,"code":"02","location":"抒望楼(原西教4号"},
+  {"weekday":3,"title":"马克思主义基本原理","periodStart":1,"periodEnd":2,"code":"28","location":"抒望楼(原西"},
+  {"weekday":3,"title":"概率与数理统计","periodStart":3,"periodEnd":4,"code":"23","location":"集贤楼(原西教2号"},
+  {"weekday":3,"title":"面向对象技术","periodStart":5,"periodEnd":6,"code":"01","location":"观成楼(原西教1号"},
+  {"weekday":4,"title":"算法与数据结构","periodStart":1,"periodEnd":2,"code":"01","location":"蔚云楼(原西教6号"},
+  {"weekday":4,"title":"大学英语B3","periodStart":3,"periodEnd":4,"code":"70","location":"抒望楼(原西教4号楼)20"},
+  {"weekday":4,"title":"电路与电子技术","periodStart":5,"periodEnd":6,"code":"02","location":"抒望楼(原西教4号"},
+  {"weekday":5,"title":"离散数学","periodStart":1,"periodEnd":2,"code":"04","location":"抒望楼(原西教4号楼)50"},
+  {"weekday":5,"title":"面向对象技术","periodStart":3,"periodEnd":4,"code":"01","location":"观成楼(原西教1号"},
+  {"weekday":5,"title":"马克思主义基本原理","periodStart":5,"periodEnd":6,"code":"28","location":"抒望楼(原西"}
+]

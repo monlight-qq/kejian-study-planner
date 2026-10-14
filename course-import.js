@@ -68,13 +68,20 @@
   }
   function dayOf(text){const match=[...tidy(text).matchAll(dayPattern)][0];return !match ? 0 : match[1] ? (match[1]==='天' ? 7 : DAYS.indexOf(match[1])+1) : ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].indexOf(match[2].toLowerCase())+1;}
   function timeRange(text){const match=tidy(text).match(/\b(\d{1,2})\s*:\s*([0-5]\s*\d)\s*-\s*(\d{1,2})\s*:?\s*([0-5]\s*\d)\b/);if(!match)return null;const start=match[1].padStart(2,'0')+':'+match[2].replace(/\s/g,''),end=match[3].padStart(2,'0')+':'+match[4].replace(/\s/g,'');return start<end&&Number(match[1])<24&&Number(match[3])<24 ? {startTime:start,endTime:end} : null;}
-  function candidate(text,weekday=0,confidence=0,{joinTitle=false}={}){
+  function packedFields(lines){
+    // Compact portal cards put the section number between the name and room.
+    // Identify it before joining wrapped building names and old campus aliases.
+    const text=lines.map(stripSchedule).join('').replace(/[ \t]/g,''),match=text.match(/[（(](\d{1,3})[）)]/);
+    if(!match||!match.index)return null;
+    return {title:cleanField(text.slice(0,match.index)),location:cleanField(text.slice(match.index+match[0].length)).replace(/〈(?=原)/g,'('),code:match[1]};
+  }
+  function candidate(text,weekday=0,confidence=0,{joinTitle=false,packed=false}={}){
     const raw=tidy(text),lines=raw.split(/\n+/).map(tidy).filter(Boolean),times=timeRange(raw),period=raw.match(/(?:第\s*)?(\d{1,2})\s*[-,、]\s*(\d{1,2})\s*节/)||raw.match(/第\s*(\d{1,2})\s*节/);
     const repeatText=compact(raw),repeat=/单周|[（(]\s*单\s*[）)]|\bodd\b/i.test(repeatText) ? 'odd' : /双周|[（(]\s*双\s*[）)]|\beven\b/i.test(repeatText) ? 'even' : 'all';
-    const {title,location}=courseFields(lines,joinTitle);
+    const fields=packed&&packedFields(lines)||courseFields(lines,joinTitle),{title,location}=fields;
     if(!title)return null;
     const weeks=raw.match(/(?:第\s*)?\d+\s*(?:[-,、]\s*\d+)?\s*周(?:[（(][单双][）)])?/g);
-    return {title:title.slice(0,80),weekday:weekday||dayOf(raw),repeat,startTime:times?.startTime||'',endTime:times?.endTime||'',location:location.slice(0,120),notes:weeks ? '原图周次：'+weeks.join('、')+'；请核对适用范围。' : '',weeks:schedule.weeksFromText(raw)||[...schedule.ALL_WEEKS],adjustments:[],periodStart:period ? Number(period[1]) : 0,periodEnd:period ? Number(period[2]||period[1]) : 0,confidence,source:raw};
+    return {title:title.slice(0,80),weekday:weekday||dayOf(raw),repeat,startTime:times?.startTime||'',endTime:times?.endTime||'',location:location.slice(0,120),notes:[fields.code ? '原图编号：'+fields.code : '',weeks ? '原图周次：'+weeks.join('、')+'；请核对适用范围。' : ''].filter(Boolean).join('\n'),weeks:schedule.weeksFromText(raw)||[...schedule.ALL_WEEKS],adjustments:[],periodStart:period ? Number(period[1]) : 0,periodEnd:period ? Number(period[2]||period[1]) : 0,confidence,source:raw};
   }
   function rowsFromWords(words){
     const rows=[];for(const word of [...words].sort((a,b)=>a.bbox.y0-b.bbox.y0||a.bbox.x0-b.bbox.x0)){const h=Math.max(8,word.bbox.y1-word.bbox.y0),mid=(word.bbox.y0+word.bbox.y1)/2;let row=rows.find(row=>Math.abs(row.mid-mid)<Math.max(h,row.height)*.55);if(!row){row={mid,height:h,words:[]};rows.push(row);}row.words.push(word);}
@@ -106,6 +113,49 @@
     }
     return cells.slice(0,100);
   }
+  const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)];
+  function numericBands(rows,height){
+    const marks=rows.map(row=>({number:Number(row.text.trim()),y:(row.bbox.y0+row.bbox.y1)/2})).filter(mark=>Number.isInteger(mark.number)&&mark.number>=1&&mark.number<=12);
+    if(marks.length<4)return [];
+    const slopes=[];for(const a of marks)for(const b of marks)if(b.number>a.number&&b.y>a.y)slopes.push((b.y-a.y)/(b.number-a.number));
+    if(!slopes.length)return [];const step=median(slopes),first=median(marks.map(mark=>mark.y-(mark.number-1)*step)),inliers=marks.filter(mark=>Math.abs(mark.y-first-(mark.number-1)*step)<step*.18);
+    if(step<15||inliers.length<4||Math.max(...inliers.map(mark=>mark.number))-Math.min(...inliers.map(mark=>mark.number))<4)return [];
+    return Array.from({length:12},(_,i)=>({top:Math.max(0,first+(i-.5)*step),bottom:Math.min(height,first+(i+.5)*step),periodStart:i+1,periodEnd:i+1}));
+  }
+  function selectPacked(parts,weekday){
+    const choices=parts.map(data=>{
+      const words=(data.blocks||[]).flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>(paragraph.lines||[]).flatMap(line=>line.words||[]))),rows=rowsFromWords(words),text=rows.map(row=>row.text).join('\n')||data.text,item=candidate(text,weekday,textConfidence(data),{joinTitle:true,packed:true});if(!item)return null;
+      const joined=rows.map(row=>row.text.replace(/\s/g,'')).join(''),code=joined.match(/[（(]\d{1,3}[）)]/);let offset=0;const scores={title:[],location:[]};for(const row of rows){const length=row.text.replace(/\s/g,'').length;scores[code&&offset>=code.index+code[0].length ? 'location' : 'title'].push(row.confidence);offset+=length;}
+      return {item,title:scores.title.length ? scores.title.reduce((a,b)=>a+b,0)/scores.title.length : data.confidence||0,location:(scores.location.length ? scores.location.reduce((a,b)=>a+b,0)/scores.location.length : data.confidence||0)-(/[?&¥]/.test(item.location) ? 15 : 0)};
+    }).filter(Boolean);
+    if(!choices.length)return null;
+    const title=[...choices].sort((a,b)=>b.title-a.title)[0],code=title.item.notes.match(/原图编号：(\d+)/)?.[1],compatible=choices.filter(choice=>choice.item.notes.match(/原图编号：(\d+)/)?.[1]===code&&choice.item.location),place=compatible.sort((a,b)=>b.location-a.location)[0]||title,item={...title.item,location:place.item.location,confidence:Math.min(title.item.confidence,place.item.confidence)};
+    item.source=[...new Set([title.item.source,place.item.source])].join('\n\n');
+    if(choices.some(choice=>choice.item.title!==item.title||choice.item.location!==item.location)){item.confidence=Math.min(item.confidence,74);item.notes+=(item.notes ? '\n' : '')+'浅色文字的识别结果存在差异，请重点核对名称和地点。';}
+    return item;
+  }
+  function coloredCells(layout,pixels){
+    if(!layout)return [];const {width,height,data}=pixels,at=(x,y)=>{const i=(y*width+x)*4;return [data[i],data[i+1],data[i+2]];},samples=[];
+    // The empty lower grid provides the neutral background, including dark mode.
+    for(let y=Math.floor(height*.8);y<height*.94;y+=9)for(let x=Math.ceil(layout.firstX);x<width-layout.spacing*.2;x+=Math.max(4,Math.floor(layout.spacing*.25)))samples.push(at(x,y));
+    if(!samples.length)return [];const base=[0,1,2].map(i=>median(samples.map(rgb=>rgb[i]))),light=Math.max(...base)>128,cells=[];
+    for(let weekday=1;weekday<=7;weekday++){
+      const center=layout.firstX+(weekday-1)*layout.spacing,left=Math.max(0,Math.ceil(center-layout.spacing*.43)),right=Math.min(width,Math.floor(center+layout.spacing*.43));if(right<=left)continue;
+      const rows=[];for(let y=Math.ceil(layout.top);y<height;y++){
+        let tinted=0,total=0;for(let x=left;x<right;x+=3){const rgb=at(x,y),brightness=median(rgb),distance=rgb.reduce((sum,v,i)=>sum+Math.abs(v-base[i]),0);total++;if(distance>14&&(light ? brightness>210 : brightness<90))tinted++;}
+        rows.push(tinted/total>.52);
+      }
+      // Bridge text and compression gaps, but retain the gap between cards.
+      for(let i=1;i<rows.length-3;i++)if(!rows[i]&&rows[i-1]){let end=i;while(end<rows.length&&!rows[end]&&end-i<4)end++;if(rows[end]&&end-i<4)rows.fill(true,i,end);}
+      for(let i=0;i<rows.length;i++)if(rows[i]){let end=i+1;while(rows[end])end++;const top=i+Math.ceil(layout.top),bottom=end+Math.ceil(layout.top);i=end;
+        if(bottom-top<layout.spacing*.65)continue;
+        const covered=layout.bands.filter(band=>{const mid=(band.top+band.bottom)/2;return mid>=top&&mid<bottom;});
+        const cropLeft=Math.max(0,Math.ceil(center-layout.spacing*.49)),cropRight=Math.min(width,Math.floor(center+layout.spacing*.49));
+        cells.push({weekday,packed:true,band:{periodStart:covered[0]?.periodStart||0,periodEnd:covered.at(-1)?.periodEnd||0},rectangle:{left:cropLeft,top,width:cropRight-cropLeft,height:bottom-top}});
+      }
+    }
+    return cells.slice(0,100);
+  }
   function parseOCR(data){
     let drafts=[];const layout=ocrLayout(data);
     if(layout){
@@ -130,16 +180,16 @@
   }
   function applyPeriods(item,periods){const first=periods[item.periodStart],last=periods[item.periodEnd];if(!item.startTime&&first?.startTime)item.startTime=first.startTime;if(!item.endTime&&last?.endTime)item.endTime=last.endTime;return item;}
   function mergeCourses(existing,incoming){const signature=course=>[course.title,course.weekday,course.repeat||'all',course.startTime,course.endTime,course.location,(course.weeks||schedule.ALL_WEEKS).filter(week=>schedule.matchesRepeat(week,course.repeat)).sort((a,b)=>a-b).join(',')].join('|'),seen=new Set(existing.map(signature));let skipped=0;const added=incoming.filter(course=>{const key=signature(course);if(seen.has(key)){skipped++;return false;}seen.add(key);return true;});return {courses:[...existing,...added],added:added.length,skipped};}
-  if(typeof module!=='undefined'&&module.exports)module.exports={candidate,parseOCR,dayOf,timeRange,applyPeriods,mergeCourses,ocrLayout,gridCells};
+  if(typeof module!=='undefined'&&module.exports)module.exports={candidate,parseOCR,dayOf,timeRange,applyPeriods,mergeCourses,ocrLayout,gridCells,numericBands,coloredCells,selectPacked};
   if(typeof document==='undefined')return;
   const $=selector=>document.querySelector(selector);let api,worker=null,job=0,drafts=[],source='',preview='';
   const dialog=$('#course-import-dialog'),form=$('#course-import-form');
   function status(text,percent=0){$('#ocr-status').textContent=text;$('#ocr-progress').value=percent;}
   function renderDrafts(){
-    $('#import-candidates').innerHTML=drafts.map((item,index)=>`<article class="import-candidate" data-import-index="${index}"><div class="import-candidate-head"><label class="inline-checkbox"><input type="checkbox" name="include-${index}" checked><span>课程 ${String(index+1).padStart(2,'0')}</span></label><span class="review-badge">${!item.weekday||!item.startTime||!item.endTime||!item.location ? '待补充' : item.confidence<75 ? '重点核对' : '请核对'}</span><button type="button" class="icon-button" data-remove-import="${index}" aria-label="移除课程">${api.icon('close')}</button></div><label>课程名称<input name="title-${index}" value="${api.escape(item.title)}" maxlength="80" required></label><div class="import-pair"><label>上课日<select name="weekday-${index}" required><option value="">请选择</option>${DAYS.map((day,i)=>`<option value="${i+1}" ${item.weekday===i+1 ? 'selected' : ''}>周${day}</option>`).join('')}</select></label><label>上课周次<select name="repeat-${index}">${['all','odd','even'].map((repeat,i)=>`<option value="${repeat}" ${item.repeat===repeat ? 'selected' : ''}>${['每周','单周','双周'][i]}</option>`).join('')}</select></label></div><details class="import-week-settings"><summary>上课周数 · <span data-import-week-summary>${schedule.summary(item.weeks)}</span></summary><input type="hidden" name="weeks-${index}"><div class="week-picker" data-week-input="weeks-${index}"></div></details><div class="time-pair"><label>开始时间<input type="time" name="startTime-${index}" value="${item.startTime}" required></label><label>结束时间<input type="time" name="endTime-${index}" value="${item.endTime}" required></label></div><label>上课地点<input name="location-${index}" value="${api.escape(item.location)}" maxlength="120" required placeholder="补充教室或地点"></label><label>备注<textarea name="notes-${index}" rows="2" maxlength="500">${api.escape(item.notes)}</textarea></label>${item.periodStart ? `<p class="form-hint">原图：第 ${item.periodStart}${item.periodEnd!==item.periodStart ? '–'+item.periodEnd : ''} 节，可在上方设置作息填入时间。</p>` : ''}<details class="source-text"><summary>查看原图识别文字</summary><p>${api.escape(item.source)}</p></details></article>`).join('');
+    $('#import-candidates').innerHTML=drafts.map((item,index)=>`<article class="import-candidate" data-import-index="${index}"><div class="import-candidate-head"><label class="inline-checkbox"><input type="checkbox" name="include-${index}" checked><span>课程 ${String(index+1).padStart(2,'0')}</span></label><span class="review-badge">${item.confidence<75 ? '重点核对' : !item.weekday||!item.startTime||!item.endTime||!item.location ? '待补充' : '请核对'}</span><button type="button" class="icon-button" data-remove-import="${index}" aria-label="移除课程">${api.icon('close')}</button></div><label>课程名称<input name="title-${index}" value="${api.escape(item.title)}" maxlength="80" required></label><div class="import-pair"><label>上课日<select name="weekday-${index}" required><option value="">请选择</option>${DAYS.map((day,i)=>`<option value="${i+1}" ${item.weekday===i+1 ? 'selected' : ''}>周${day}</option>`).join('')}</select></label><label>上课周次<select name="repeat-${index}">${['all','odd','even'].map((repeat,i)=>`<option value="${repeat}" ${item.repeat===repeat ? 'selected' : ''}>${['每周','单周','双周'][i]}</option>`).join('')}</select></label></div><details class="import-week-settings"><summary>上课周数 · <span data-import-week-summary>${schedule.summary(item.weeks)}</span></summary><input type="hidden" name="weeks-${index}"><div class="week-picker" data-week-input="weeks-${index}"></div></details><div class="time-pair"><label>开始时间<input type="time" name="startTime-${index}" value="${item.startTime}" required></label><label>结束时间<input type="time" name="endTime-${index}" value="${item.endTime}" required></label></div><label>上课地点<input name="location-${index}" value="${api.escape(item.location)}" maxlength="120" required placeholder="补充教室或地点"></label><label>备注<textarea name="notes-${index}" rows="2" maxlength="500">${api.escape(item.notes)}</textarea></label>${item.periodStart ? `<p class="form-hint">原图：第 ${item.periodStart}${item.periodEnd!==item.periodStart ? '–'+item.periodEnd : ''} 节，可在上方设置作息填入时间。</p>` : ''}<details class="source-text"><summary>查看原图识别文字</summary><p>${api.escape(item.source)}</p></details></article>`).join('');
     drafts.forEach((item,index)=>{form.elements[`include-${index}`].checked=item.include!==false;});
     drafts.forEach((item,index)=>schedule.renderPicker(document.querySelector(`[data-week-input="weeks-${index}"]`),item.weeks||schedule.ALL_WEEKS,item.repeat));
-    $('#import-review').hidden=false;$('#import-summary').textContent=drafts.length ? `识别出 ${drafts.length} 条候选课程` : '没有自动找到课程';$('#import-hint').textContent=drafts.length ? '对照原图检查名称、星期、时间、地点与单双周，确认后再保存。' : '可在下方查看识别文字并手动补充课程；清晰、正向的课表截图更容易识别。';$('#import-save').disabled=!drafts.length;updateIncludes();
+    $('#import-review').hidden=false;$('#import-summary').textContent=drafts.length ? `识别出 ${drafts.length} 条候选课程` : '没有自动找到课程';$('#import-hint').textContent=drafts.length ? drafts.some(item=>item.periodStart&&!item.startTime) ? '原图只有节次，请展开学校作息填入时间。单周视图仅导入截图中的周次；请核对适用周数、课程名称和截断的地点。' : '对照原图检查名称、星期、时间、地点与单双周，确认后再保存。' : '可在下方查看识别文字并手动补充课程；清晰、正向的课表截图更容易识别。';$('#import-save').disabled=!drafts.length;updateIncludes();
   }
   function readDrafts(){drafts=drafts.map((item,index)=>{for(const field of ['title','weekday','repeat','startTime','endTime','location','notes'])item[field]=form.elements[`${field}-${index}`].value;item.weekday=Number(item.weekday);item.weeks=schedule.readPicker(document.querySelector(`[data-week-input="weeks-${index}"]`));item.include=form.elements[`include-${index}`].checked;return item;});}
   function updateIncludes(){let selected=0;drafts.forEach((item,index)=>{const checked=form.elements[`include-${index}`].checked;selected+=checked;document.querySelector(`[data-import-index="${index}"]`).classList.toggle('excluded',!checked);for(const field of ['title','weekday','repeat','startTime','endTime','location','notes'])form.elements[`${field}-${index}`].disabled=!checked;});$('#import-save').disabled=!selected;$('#import-save').textContent=`确认导入 ${selected} 门课程`;}
@@ -150,12 +200,16 @@
     try{const img=new Image();img.src=data;await img.decode();if(token!==job)return;if(img.naturalWidth*img.naturalHeight>40000000||img.naturalWidth<80||img.naturalHeight<80)throw new Error('请使用清晰的课表截图，图片不要超过 4000 万像素');const canvas=document.createElement('canvas'),scale=Math.min(2,2400/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.round(img.naturalWidth*scale);canvas.height=Math.round(img.naturalHeight*scale);const context=canvas.getContext('2d');context.fillStyle='white';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(img,0,0,canvas.width,canvas.height);preview=canvas.toDataURL('image/png');$('#import-image').src=preview;$('#import-image-wrap').hidden=false;$('#import-recognize').disabled=false;status('截图已就绪，点击开始识别');}catch(error){if(token===job){preview='';$('#import-image-wrap').hidden=true;$('#import-recognize').disabled=true;status(error.message||'无法读取图片，请使用 PNG、JPG 或 WebP');}}
   }
   function script(){if(window.Tesseract)return Promise.resolve();return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='./assets/ocr/tesseract.min.js';script.onload=resolve;script.onerror=()=>{script.remove();reject(new Error('无法加载识别组件，请重新打开应用'));};document.head.append(script);});}
-  function readableCell(img,rectangle){
-    const canvas=document.createElement('canvas'),padding=20;canvas.width=rectangle.width+padding*2;canvas.height=rectangle.height+padding*2;
-    const context=canvas.getContext('2d');context.fillStyle='white';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(img,rectangle.left,rectangle.top,rectangle.width,rectangle.height,padding,padding,rectangle.width,rectangle.height);
+  function readableCell(img,rectangle,adaptive=false){
+    const canvas=document.createElement('canvas'),padding=20,scale=adaptive ? 2 : 1;canvas.width=rectangle.width*scale+padding*2;canvas.height=rectangle.height*scale+padding*2;
+    const context=canvas.getContext('2d');context.fillStyle='white';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(img,rectangle.left,rectangle.top,rectangle.width,rectangle.height,padding,padding,rectangle.width*scale,rectangle.height*scale);
+    if(adaptive==='color')return canvas.toDataURL('image/png');
     const pixels=context.getImageData(0,0,canvas.width,canvas.height),gray=index=>(pixels.data[index]*299+pixels.data[index+1]*587+pixels.data[index+2]*114)/1000;
     const corners=[[padding,padding],[canvas.width-padding-1,padding],[padding,canvas.height-padding-1],[canvas.width-padding-1,canvas.height-padding-1]].map(([x,y])=>gray((y*canvas.width+x)*4)).sort((a,b)=>a-b),dark=corners[2]<128;
-    for(let y=padding;y<canvas.height-padding;y++)for(let x=padding;x<canvas.width-padding;x++){const index=(y*canvas.width+x)*4,value=(dark ? 255-gray(index) : gray(index))<170 ? 0 : 255;pixels.data[index]=pixels.data[index+1]=pixels.data[index+2]=value;}
+    const tone=index=>adaptive ? dark ? 255-Math.max(pixels.data[index],pixels.data[index+1],pixels.data[index+2]) : Math.min(pixels.data[index],pixels.data[index+1],pixels.data[index+2]) : dark ? 255-gray(index) : gray(index);
+    let threshold=170;
+    if(adaptive){const counts=new Array(256).fill(0);let sum=0,total=0;for(let y=padding;y<canvas.height-padding;y++)for(let x=padding;x<canvas.width-padding;x++){const value=Math.round(tone((y*canvas.width+x)*4));counts[value]++;sum+=value;total++;}let weight=0,leftSum=0,best=0;for(let i=0;i<255;i++){weight+=counts[i];leftSum+=i*counts[i];if(!weight||weight===total)continue;const difference=leftSum/weight-(sum-leftSum)/(total-weight),variance=weight*(total-weight)*difference*difference;if(variance>best){best=variance;threshold=i+1;}}}
+    for(let y=padding;y<canvas.height-padding;y++)for(let x=padding;x<canvas.width-padding;x++){const index=(y*canvas.width+x)*4,value=tone(index)<threshold ? 0 : 255;pixels.data[index]=pixels.data[index+1]=pixels.data[index+2]=value;}
     context.putImageData(pixels,0,0);return canvas.toDataURL('image/png');
   }
   function textConfidence(data){const values=(data.blocks||[]).flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>(paragraph.lines||[]).map(line=>line.confidence))).filter(Number.isFinite);return Math.min(data.confidence||0,...values);}
@@ -170,20 +224,34 @@
       await ownedWorker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1',user_defined_dpi:'150'});
       const {data}=await ownedWorker.recognize(image,{}, {text:true,blocks:true});if(token!==job)return;
       source=data.text||'';drafts=parseOCR(data);
-      const img=$('#import-image'),cells=gridCells(ocrLayout(data),img.naturalWidth,img.naturalHeight);
+      const img=$('#import-image'),layout=ocrLayout(data),raster=document.createElement('canvas');raster.width=img.naturalWidth;raster.height=img.naturalHeight;const context=raster.getContext('2d',{willReadFrequently:true});context.drawImage(img,0,0);
+      let cards=coloredCells(layout,context.getImageData(0,0,raster.width,raster.height));
+      if(cards.length&&layout&&!layout.bands.length){
+        refining=true;status('正在读取左侧节次…',66);
+        const rectangle={left:0,top:Math.ceil(layout.top),width:Math.max(1,Math.floor(layout.firstX-layout.spacing*.5-2)),height:img.naturalHeight-Math.ceil(layout.top)};
+        await ownedWorker.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:'0123456789'});
+        const {data:axis}=await ownedWorker.recognize(readableCell(img,rectangle,true),{},{text:true,blocks:true});if(token!==job)return;
+        const words=(axis.blocks||[]).flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>(paragraph.lines||[]).flatMap(line=>line.words||[]))).map(word=>({...word,bbox:{x0:rectangle.left+(word.bbox.x0-20)/2,x1:rectangle.left+(word.bbox.x1-20)/2,y0:rectangle.top+(word.bbox.y0-20)/2,y1:rectangle.top+(word.bbox.y1-20)/2}}));
+        layout.bands=numericBands(rowsFromWords(words),img.naturalHeight);await ownedWorker.setParameters({tessedit_char_whitelist:''});
+        cards=coloredCells(layout,context.getImageData(0,0,raster.width,raster.height));
+      }
+      const cells=cards.length ? cards : gridCells(layout,img.naturalWidth,img.naturalHeight),viewWeek=cards.length&&compact(source).match(/第\s*(\d{1,2})\s*周/);
       if(cells.length){
-        refining=true;const refined=[];await ownedWorker.setParameters({tessedit_pageseg_mode:'6'});
+        refining=true;const refined=[];if(cards.length)await ownedWorker.reinitialize('chi_sim');await ownedWorker.setParameters({tessedit_pageseg_mode:'6'});
         for(const [index,cell] of cells.entries()){
           if(token!==job)return;status(`正在分别识别课程名与地点 ${index+1}/${cells.length}…`,65+Math.round(index/cells.length*30));
-          let {data:part}=await ownedWorker.recognize(image,{rectangle:cell.rectangle},{text:true,blocks:true});if(token!==job)return;
-          if(textConfidence(part)<75){const {data:retry}=await ownedWorker.recognize(readableCell(img,cell.rectangle),{},{text:true,blocks:true});if(token!==job)return;if(retry.confidence>=85&&retry.confidence>part.confidence+6&&candidate(retry.text,cell.weekday,0,{joinTitle:true})?.location)part=retry;}
-          let item=candidate(part.text,cell.weekday,textConfidence(part),{joinTitle:true});const fallback=drafts.find(item=>item.weekday===cell.weekday&&item.startTime===cell.band.startTime);
+          let {data:part}=await ownedWorker.recognize(cell.packed ? readableCell(img,cell.rectangle,true) : image,cell.packed ? {} : {rectangle:cell.rectangle},{text:true,blocks:true});if(token!==job)return;
+          let packedItem;
+          if(cell.packed){const {data:retry}=await ownedWorker.recognize(readableCell(img,cell.rectangle,'color'),{},{text:true,blocks:true});if(token!==job)return;const r=cell.rectangle,words=layout.words.filter(word=>{const x=(word.bbox.x0+word.bbox.x1)/2,y=(word.bbox.y0+word.bbox.y1)/2;return x>=r.left&&x<r.left+r.width&&y>=r.top&&y<r.top+r.height;}),rows=rowsFromWords(words);packedItem=selectPacked([part,retry,{blocks:[{paragraphs:[{lines:rows}]}],text:rows.map(row=>row.text).join('\n'),confidence:rows.length ? Math.min(...rows.map(row=>row.confidence)) : 0}],cell.weekday);}
+          if(!cell.packed&&textConfidence(part)<75){const {data:retry}=await ownedWorker.recognize(readableCell(img,cell.rectangle),{},{text:true,blocks:true});if(token!==job)return;if(retry.confidence>=85&&retry.confidence>part.confidence+6&&candidate(retry.text,cell.weekday,0,{joinTitle:true})?.location)part=retry;}
+          let item=packedItem||candidate(part.text,cell.weekday,textConfidence(part),{joinTitle:true,packed:cell.packed});const fallback=drafts.find(item=>item.weekday===cell.weekday&&(cell.band.startTime ? item.startTime===cell.band.startTime : cell.band.periodStart&&item.periodStart===cell.band.periodStart));
           if(!item?.location&&fallback)item=fallback;
-          if(item){item.startTime||=cell.band.startTime||'';item.endTime||=cell.band.endTime||'';item.periodStart||=cell.band.periodStart;item.periodEnd||=cell.band.periodEnd;refined.push(item);}
+          if(!item&&cell.packed)item={title:'',weekday:cell.weekday,repeat:'all',startTime:'',endTime:'',location:'',notes:'这格文字未能可靠识别，请对照原图补充。',weeks:[...schedule.ALL_WEEKS],adjustments:[],periodStart:0,periodEnd:0,confidence:0,source:part.text||''};
+          if(item){item.startTime||=cell.band.startTime||'';item.endTime||=cell.band.endTime||'';item.periodStart||=cell.band.periodStart;item.periodEnd||=cell.band.periodEnd;if(viewWeek&&Number(viewWeek[1])>=1&&Number(viewWeek[1])<=20){item.weeks=[Number(viewWeek[1])];item.notes+=(item.notes ? '\n' : '')+'原图为第'+viewWeek[1]+'周视图；其他上课周数请对照学校课表补充。';}refined.push(item);}
         }
-        if(refined.length===drafts.length&&refined.every(item=>item.title&&item.location))drafts=refined;
+        if(refined.length===(cards.length ? cells.length : drafts.length)&&(cards.length||refined.every(item=>item.title&&item.location)))drafts=refined;
       }
-      drafts.forEach(item=>{if(item.title.includes('…'))item.notes+=(item.notes ? '\n' : '')+'原图课程名已截断，完整名称请对照学校课表补充。';});
+      drafts.forEach(item=>{if(item.title.includes('…'))item.notes+=(item.notes ? '\n' : '')+'原图课程名已截断，完整名称请对照学校课表补充。';if(/[（(〈]/.test(item.location)&&!/[）)]/.test(item.location))item.notes+=(item.notes ? '\n' : '')+'原图地点被裁切，完整楼名、房号请对照学校课表补充。';});
       $('#import-raw').textContent=source||'未识别到文字';status('识别完成，请校对后保存',100);renderDrafts();
     }catch(error){if(token===job){status('识别未完成，请重试或换一张更清晰的截图');api.toast('识别失败，截图仍可重新选择');}}
     finally{ownedWorker?.terminate();if(worker===ownedWorker)worker=null;if(token===job){$('#import-recognize').disabled=false;$('#import-pick').disabled=false;}}

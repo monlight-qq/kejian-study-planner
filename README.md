@@ -22,7 +22,7 @@ PWA 安装、Service Worker 和离线缓存需要 **HTTPS**；电脑 `localhost`
 - iPhone：用 Safari 打开 HTTPS 页面，分享 → 添加到主屏幕。
 - 首次联网打开并成功完成缓存后，可从主屏幕离线打开。
 
-浏览器版本是 PWA。同时提供 Android APK：`dist/kejian-1.7.2.apk`，可直接在 Android 8.0 及以上系统安装。安装包内置全部页面，首次启动也不需要网络或电脑服务器。当前未提供 iOS 原生安装包。
+浏览器版本是 PWA。同时提供 Android APK：`dist/kejian-1.7.3.apk`，可直接在 Android 8.0 及以上系统安装。安装包内置全部页面，首次启动也不需要网络或电脑服务器。当前未提供 iOS 原生安装包。
 
 ## 功能
 
@@ -52,6 +52,9 @@ PWA 安装、Service Worker 和离线缓存需要 **HTTPS**；电脑 `localhost`
 2. 点击“开始识别”。Android 使用系统图片选择器，无需存储权限；OCR 引擎与中英文模型内置，截图不上传，APK 首次启动即可离线识别。浏览器版首次联网完成离线缓存后也可断网识别。
 
 识别保留中文行边界，分别提取课程名、地点和时间。课程名与地点在同一行也会按字段分开；支持中文楼名、字母教室号，以及“宏智楼2 / 15”“信智楼B / 411室”等窄列换行。含“大节”分组的表格按星期列和节次定位，再逐格识别，避免把相邻课程合并；左侧跨行的时间与小节编号会按对应的大节填入。低置信度格子会进行带留白的清晰度复识别，仍不确定的文字标为“重点核对”。省略号截断的课程名保留省略号，并在备注中提醒补充完整名称。
+
+教务系统的彩色周课表会按课程卡片分开识别，跨两节的卡片保留为一门课。左侧浅色的 1–12 小节编号单独读取并对应到课程；“课程名(01)地点”中的编号移到备注，换行楼名、旧楼别名和体育场地点分别保留。浅色文字用放大与自适应对比度复识别，结果不一致时标为“重点核对”。图中只有节次时不猜上课时间；单周视图仅选中截图明确显示的周次，可在导入前改成实际范围。截图中隐藏或截断的房号、楼名须对照学校课表补充。
+
 3. 对照原图校对课程名、星期、时间、地点及单双周。可以移除误识别项、取消勾选不导入的课程，或补充遗漏课程；缺少的必填信息须补齐。
 4. 如果截图只有“第几节”，展开学校作息，填写对应节次的真实时间，再应用到空白时间。无法确认的节次或时间需要手动填写，不按通用作息猜测。
 5. 展开“上课周数”检查第 1–20 周的识别结果，可以逐周选择或按范围修改。点击“确认导入”后与现有课表合并，相同名称、星期、单双周、有效周次、时间、地点的课程跳过；保留原有作业和复习计划。单双周仍按学期第 1 周设置计算。
@@ -62,9 +65,9 @@ PWA 安装、Service Worker 和离线缓存需要 **HTTPS**；电脑 `localhost`
 
 OCR 使用 [Tesseract.js 的本地资源配置](https://github.com/naptha/tesseract.js/blob/v6.0.1/docs/local-installation.md) 与中英文模型，开源许可证及资源来源保存在 `assets/ocr/`。新增图片导入使用 Android 系统文档选择器，在后台解码并缩放至适合识别的尺寸。
 
-把 `dist/kejian-1.7.2.apk` 传到手机，点击文件，按系统提示允许该文件管理器安装应用，再安装即可。与旧版包名及签名相同，可直接覆盖安装，保留原有记录与主题。浏览器版本与 Android 应用分别保存数据，可以通过设置中的 JSON 备份迁移。旧记录未填写的开始日期可在编辑时补充。
+把 `dist/kejian-1.7.3.apk` 传到手机，点击文件，按系统提示允许该文件管理器安装应用，再安装即可。与旧版包名及签名相同，可直接覆盖安装，保留原有记录与主题。浏览器版本与 Android 应用分别保存数据，可以通过设置中的 JSON 备份迁移。旧记录未填写的开始日期可在编辑时补充。
 
-应用包名 `com.kejian.planner`，版本 1.7.2，最低 Android 8.0（API 26），目标 Android 15（API 35）。使用原生 WebView 加载内置 HTTPS 资源，未申请联网或存储权限；备份导出和导入使用 Android 系统文件选择器。为发送提醒，声明通知、准时闹钟和开机恢复权限。请保持系统 Android WebView 处于较新的版本。卸载或清除应用数据会删除本机记录，请先导出备份。
+应用包名 `com.kejian.planner`，版本 1.7.3，最低 Android 8.0（API 26），目标 Android 15（API 35）。使用原生 WebView 加载内置 HTTPS 资源，未申请联网或存储权限；备份导出和导入使用 Android 系统文件选择器。为发送提醒，声明通知、准时闹钟和开机恢复权限。请保持系统 Android WebView 处于较新的版本。卸载或清除应用数据会删除本机记录，请先导出备份。
 
 ### 开启提前 6 小时和提前 3 小时提醒
 
@@ -89,7 +92,7 @@ powershell -ExecutionPolicy Bypass -File android/build.ps1 -SdkPath C:\Android\S
 
 构建脚本使用 JDK 17、官方 Android SDK Platform 35 与 Build Tools 35，执行资源打包、Java 编译、DEX 转换、对齐和签名，不依赖 Android Studio 或 Gradle。当前工作区的 SDK 位于 `.android-sdk/`，JDK 默认路径是 `E:\jdk`。
 
-签名密钥与随机生成的口令保存在 `android/keys/`，已加入 `.gitignore`，不会打包进 APK。**务必妥善保存整个 keys 目录**；后续更新需要相同签名才能覆盖安装并保留数据。APK 的 SHA-256 摘要位于 `dist/kejian-1.7.2.apk.sha256`。
+签名密钥与随机生成的口令保存在 `android/keys/`，已加入 `.gitignore`，不会打包进 APK。**务必妥善保存整个 keys 目录**；后续更新需要相同签名才能覆盖安装并保留数据。APK 的 SHA-256 摘要位于 `dist/kejian-1.7.3.apk.sha256`。
 
 构建工具与签名检查参考 [Android 官方命令行构建说明](https://developer.android.com/build/building-cmdline) 和 [apksigner 文档](https://developer.android.com/tools/apksigner)。
 
@@ -98,6 +101,8 @@ powershell -ExecutionPolicy Bypass -File android/build.ps1 -SdkPath C:\Android\S
 ## 检查
 
 用户提供的测试图保存在 `tests/fixtures/user-timetable.jpg`，人工核对结果在同目录 `user-timetable.expected.json`。`tests/user-screenshot-browser.cjs` 使用真实本地 OCR 验证 15 个独立课程格、全部星期、五个时间段、换行楼名 / 房间号、截断提示、校对保存及离线重复识别。当前这张图仍有两处“臻”字和一处体育课罗马数字需要手动核对，测试确认三处均显示“重点核对”；自动识别不会推测图中被省略的完整课程名。
+
+第二张教务系统测试图保存在 `tests/fixtures/campus-timetable.jpg`，人工核对结果在 `campus-timetable.expected.json`。`tests/campus-screenshot-browser.cjs` 验证全部 13 门课程名称、星期、括号编号、第 1–2 / 3–4 / 5–6 节、地点分离、第 7 周范围、作息填充、导入后持久化及断网识别。浅色楼名仍可能存在单字误差，测试要求不同识别结果的地点显示“重点核对”；不会推测图中隐藏的房号。
 
 ```powershell
 npm run check
