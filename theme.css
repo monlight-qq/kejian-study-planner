@@ -1,0 +1,25 @@
+:root{color-scheme:light}.header-actions{display:flex;align-items:center;gap:2px}#theme-options{margin-bottom:0}#theme-toggle{color:var(--purple)}
+:root[data-theme="dark"]{color-scheme:dark;color:#eeebf5;background:#111015;--purple:#ad96ef;--purple-dark:#9178d9;--purple-light:#332940;--muted:#aaa2b8;--line:#39323f;--surface:#24212c;--red:#ed95aa;--green:#8fc9b1}
+[data-theme="dark"] .app-shell{background:#19171f;box-shadow:0 0 60px #0003}
+[data-theme="dark"] .brand-mark{background:#a991e8;color:#1c1626;box-shadow:3px 3px 0 #3b304f}
+[data-theme="dark"] .icon-button{color:#c0b3d0}[data-theme="dark"] .icon-button:hover{background:#30283c}
+[data-theme="dark"] .date-badge{border-color:#43384e;color:#b6a9c5}
+[data-theme="dark"] .hero{background:#342943}[data-theme="dark"] .hero .eyebrow{color:#baa4d5}[data-theme="dark"] .hero p{color:#c6b5da}[data-theme="dark"] .hero .hero-action{background:#514064;color:#e9dafa}
+[data-theme="dark"] .art-paper{background:#59486c;box-shadow:7px 9px 0 #21182d55}[data-theme="dark"] .art-paper:before{background:#aa91c9}[data-theme="dark"] .art-line{background:#81669d}[data-theme="dark"] .art-star{color:#b39bcc}[data-theme="dark"] .art-tick{background:#a88bd0}[data-theme="dark"] .art-pencil{background:#a68bcd;border-color:#c1a7e8}
+[data-theme="dark"] .stat,[data-theme="dark"] .task-card,[data-theme="dark"] .exam-card,[data-theme="dark"] .calendar-panel{background:#24212c;border-color:#36303f}
+[data-theme="dark"] .count{background:#383040;color:#c4b8d0}[data-theme="dark"] .check-button{background:#29232f;border-color:#655570}[data-theme="dark"] .check-button.checked{background:#a48add;border-color:#a48add}
+[data-theme="dark"] .subject{background:#42334f;color:#dbc5ef}[data-theme="dark"] .subject[data-color="1"]{background:#2b4139;color:#a6d1bc}[data-theme="dark"] .subject[data-color="2"]{background:#4b372a;color:#e1b795}[data-theme="dark"] .subject[data-color="3"]{background:#2c3c54;color:#b0c6e8}[data-theme="dark"] .subject[data-color="4"]{background:#493040;color:#e2b0cc}
+[data-theme="dark"] .priority-dot{color:#dfa0b3}[data-theme="dark"] .deadline-tag{background:#382e44;color:#c4b2d8}[data-theme="dark"] .deadline-tag.urgent{background:#483529;color:#e0b08c}[data-theme="dark"] .deadline-tag.overdue{background:#4c2d3a;color:#eda3bd}[data-theme="dark"] .deadline-tag.finished{background:#2b4137;color:#9dd1b8}
+[data-theme="dark"] .exam-symbol,[data-theme="dark"] .empty-icon{background:#40314e;color:#d3b9f2}[data-theme="dark"] .progress-track{background:#43364f}[data-theme="dark"] .progress-fill{background:#ad94e5}[data-theme="dark"] .exam-footer{color:#b3a3c6}
+[data-theme="dark"] .add-banner{background:#2c2337;border-color:#5a456f;color:#c4aadc}[data-theme="dark"] .add-banner strong{color:#d8c2ee}[data-theme="dark"] .footer-note{color:#9887aa}
+[data-theme="dark"] .bottom-nav{background:#221d2af2;border-color:#3a3047}[data-theme="dark"] .bottom-nav a{color:#ac9bbb}[data-theme="dark"] .bottom-nav a.active{color:#c3a7fa}
+[data-theme="dark"] .primary{background:#9274d0;color:#fff}[data-theme="dark"] .primary:hover{background:#a086da}[data-theme="dark"] .secondary{background:#382d45;color:#d5bee9;border-color:#534063}
+[data-theme="dark"] .segmented{background:#2e2539}[data-theme="dark"] .segmented button{color:#baabc9}[data-theme="dark"] .segmented button.active{background:#59426f;color:#f0e5ff}
+[data-theme="dark"] .search-field input{background:#25212e;border-color:#473851;color:#eee6fa}[data-theme="dark"] input::placeholder,[data-theme="dark"] textarea::placeholder{color:#a898b8!important}
+[data-theme="dark"] .empty-state{background:#24212ca0;border-color:#4c3c59}[data-theme="dark"] .weekdays{color:#b5a6c5}[data-theme="dark"] .calendar-day{color:#cbb9db}[data-theme="dark"] .calendar-day.other{color:#776888}[data-theme="dark"] .calendar-day.selected{background:#8f71c8;color:#fff}[data-theme="dark"] .calendar-day.today span{color:#c4a8ff}
+[data-theme="dark"] .sheet,[data-theme="dark"] .confirm-box{background:#24202d;color:#eee5f7;box-shadow:0 12px 90px #0008}[data-theme="dark"] .sheet::backdrop,[data-theme="dark"] .confirm-box::backdrop{background:#08060db3}
+[data-theme="dark"] .sheet label{color:#cbb9dd}[data-theme="dark"] .sheet label input,[data-theme="dark"] .sheet label textarea,[data-theme="dark"] .sheet label select{background:#302737;border-color:#51415f;color:#f0e5ff}[data-theme="dark"] .sheet label small{color:#b6a3c7}
+[data-theme="dark"] .detail-time{background:#382b44;color:#d0b9e3}[data-theme="dark"] .detail-notes{color:#c6b4d7}[data-theme="dark"] .chapter-item{border-color:#4b3a59;color:#d2bee4!important}[data-theme="dark"] .chapter-item:has(input:checked) span{color:#a290b1}
+[data-theme="dark"] .settings-section p,[data-theme="dark"] .confirm-box p{color:#b8a8c9}[data-theme="dark"] .version{color:#a58db7}[data-theme="dark"] .warning{background:#4c3525;color:#ecc69f}
+[data-theme="dark"] .toast{background:#e7d9f8;color:#2b193b}
+[data-theme="dark"] .calendar-day.selected.today span{color:#fff}

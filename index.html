@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f5f9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="课间：记录作业截止时间、复习计划与考试安排。">
+  <script src="./theme.js"></script>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./theme.css">
+  <link rel="stylesheet" href="./ui.css">
+  <link rel="stylesheet" href="./motion.css">
+  <title>课间 · 学习计划</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="brand" href="#home" aria-label="课间首页"><span class="brand-mark">课</span><span>课间<small>让学习，有条不紊</small></span></a>
+      <div class="header-actions"><button class="icon-button" id="theme-toggle" aria-label="切换亮暗主题" data-icon="moon"></button><button class="icon-button" id="settings-button" aria-label="设置与备份" data-icon="settings"></button></div>
+    </header>
+    <div id="storage-warning" class="warning" role="alert" hidden>浏览器无法保存数据，请及时导出备份，避免关闭后丢失。</div>
+    <main id="main" tabindex="-1"></main>
+    <nav class="bottom-nav" aria-label="主要导航">
+      <a href="#home" data-page="home"><span data-icon="home"></span><span>今日</span></a>
+      <a href="#homework" data-page="homework"><span data-icon="book"></span><span>作业</span></a>
+      <a href="#review" data-page="review"><span data-icon="spark"></span><span>复习</span></a>
+      <a href="#timetable" data-page="timetable"><span data-icon="grid"></span><span>课程</span></a>
+      <a href="#calendar" data-page="calendar"><span data-icon="calendar"></span><span>日历</span></a>
+    </nav>
+  </div>
+  <dialog id="entry-dialog" class="sheet" aria-labelledby="form-title">
+    <form id="entry-form">
+      <div class="sheet-head"><div><p class="eyebrow" id="form-eyebrow">安排下一步</p><h2 id="form-title">新建作业</h2></div><button type="button" class="icon-button" data-close="entry-dialog" aria-label="关闭" data-icon="close"></button></div>
+      <div class="segmented form-type" id="form-type"><button type="button" data-kind="homework">作业</button><button type="button" data-kind="exam">复习 / 考试</button><button type="button" data-kind="activity">活动</button></div>
+      <input type="hidden" name="id"><input type="hidden" name="kind" value="homework">
+      <label id="subject-field">科目 <span class="required">*</span><input name="subject" maxlength="40" required placeholder="自由输入，例如：数学" autocomplete="off"></label>
+      <label><span id="title-label">作业内容</span> <span class="required">*</span><input name="title" maxlength="120" required placeholder="例如：完成第二章练习"></label>
+      <div class="date-range-fields">
+        <button type="button" class="date-field" data-date-target="startDate"><span class="field-icon" data-icon="calendar"></span><span id="start-label">开始日期</span><strong data-date-display="startDate">选择日期</strong><small data-date-weekday="startDate"></small></button>
+        <span class="date-range-arrow" aria-hidden="true">→</span>
+        <button type="button" class="date-field" data-date-target="date"><span class="field-icon" data-icon="calendar"></span><span id="date-label">截止日期</span><strong data-date-display="date">选择日期</strong><small data-date-weekday="date"></small></button>
+      </div>
+      <input name="startDate" type="hidden"><input name="date" type="hidden">
+      <label class="deadline-time"><span id="end-time-label">截止时间</span><input name="endTime" type="time" required value="18:00"></label>
+      <label class="inline-checkbox"><input name="reminder" type="checkbox" checked><span id="entry-reminder-label">截止前 6 小时和 3 小时提醒我</span></label><p class="form-hint">提前 6 小时、3 小时各提醒一次；Android 版需在设置中允许通知。</p>
+      <div id="homework-fields"><label>优先级<select name="priority"><option value="normal">正常安排</option><option value="high">优先完成</option><option value="low">有空再做</option></select></label></div>
+      <div id="exam-fields" hidden><label>复习范围<textarea name="chapters" maxlength="3000" rows="3" placeholder="每行一个复习项目，例如：&#10;第一章 · 集合&#10;第二章 · 函数"></textarea><small>勾选完成的项目，自动计算复习进度。</small></label></div>
+      <label>备注 <span class="optional">选填</span><textarea name="notes" maxlength="1000" rows="2" placeholder="记下页码、考试地点或要注意的事…"></textarea></label>
+      <button class="primary full-width" type="submit"><span data-icon="plus"></span><span id="save-label">加入计划</span></button>
+    </form>
+  </dialog>
+  <dialog id="detail-dialog" class="sheet"><div id="detail-content"></div></dialog>
+  <dialog id="settings-dialog" class="sheet">
+    <div class="sheet-head"><div><p class="eyebrow">你的学习空间</p><h2>设置与备份</h2></div><button class="icon-button" data-close="settings-dialog" aria-label="关闭" data-icon="close"></button></div>
+    <section class="settings-section"><h3>外观主题</h3><p>选择适合你的亮度，也可以跟随手机系统。</p><div id="theme-options" class="segmented" aria-label="外观主题"><button type="button" data-theme-choice="light">亮色</button><button type="button" data-theme-choice="dark">暗色</button><button type="button" data-theme-choice="system">跟随系统</button></div></section>
+    <section class="settings-section"><h3>提前 6 小时和 3 小时提醒</h3><p id="reminder-status" role="status">请使用 Android APK 接收应用关闭后的通知；浏览器版只记录提醒设置。</p><div id="native-reminder-actions" class="settings-actions reminder-actions" hidden><button class="secondary" id="notification-permission-button">开启通知</button><button class="secondary" id="exact-alarm-button">准时提醒设置</button><button class="secondary" id="test-reminder-button">10 秒后测试提醒</button></div><p class="muted">在作业截止、考试或活动前 6 小时和 3 小时各通知一次。若添加时已不足 6 小时，会尽快补发当前阶段的提醒，再于提前 3 小时提醒；已不足 3 小时，只补发一条。完成、删除或关闭提醒后自动取消，已到时间的记录不再提醒。</p></section>
+    <section class="settings-section"><h3>数据留在你的设备</h3><p>作业、复习计划、活动和课程表保存在当前设备，不同手机和浏览器之间不会自动同步。定期备份，让计划安心留存。</p><div class="settings-actions"><button class="secondary" id="export-button"><span data-icon="download"></span>导出备份</button><button class="secondary" id="import-button"><span data-icon="upload"></span>导入备份</button></div><input id="import-file" type="file" accept="application/json,.json" hidden><p class="muted">导入会合并记录与课程，同一编号以备份内容为准；学期周次也会恢复。</p></section>
+    <section class="settings-section"><h3>随手打开，离线可用</h3><p id="install-description">在手机浏览器菜单中选择“添加到主屏幕”。iPhone 请使用 Safari，点击分享 → 添加到主屏幕。首次联网打开后即可离线使用。</p><button id="install-button" class="secondary" hidden><span data-icon="download"></span>安装课间</button></section>
+    <section class="settings-section"><h3>先试一试</h3><p>添加几条明确标注的示例记录，体验作业、复习与日历。</p><button class="secondary" id="demo-button">添加示例记录</button></section>
+    <section class="settings-section"><h3>整理空间</h3><button class="text-button danger" id="clear-button">清空所有记录</button></section>
+    <p class="version">课间 1.7.2 · 把时间留给重要的事</p>
+  </dialog>
+  <dialog id="confirm-dialog" class="confirm-box"><h2 id="confirm-title"></h2><p id="confirm-description"></p><div class="confirm-actions"><button class="secondary" id="confirm-cancel">取消</button><button class="primary" id="confirm-ok">确认</button></div></dialog>
+  <dialog id="course-dialog" class="sheet" aria-labelledby="course-form-title">
+    <form id="course-form">
+      <div class="sheet-head"><div><p class="eyebrow">把一周安排好</p><h2 id="course-form-title">添加课程</h2></div><button type="button" class="icon-button" data-close="course-dialog" data-icon="close" aria-label="关闭"></button></div>
+      <input name="id" type="hidden"><input name="weekday" type="hidden" value="1"><input name="repeat" type="hidden" value="all">
+      <label>课程名称 <span class="required">*</span><input name="title" required maxlength="80" autocomplete="off" placeholder="例如：高等数学"></label>
+      <label>每周上课日</label><div id="course-weekdays" class="weekday-choice" aria-label="每周上课日"></div>
+      <label>上课周次</label><div id="course-repeat" class="segmented" aria-label="上课周次"><button type="button" data-course-repeat="all" class="active">每周</button><button type="button" data-course-repeat="odd">单周</button><button type="button" data-course-repeat="even">双周</button></div>
+      <div class="course-field-heading"><h3>上课周数</h3><span>最多 20 周</span></div><input type="hidden" name="weeks"><div class="week-picker" id="course-weeks" data-week-input="weeks"></div><p class="form-hint">选到结课周即可提前结束，也可取消不上课的某一周；单双周设置同时生效。</p>
+      <div class="time-pair"><label>开始时间<input name="startTime" type="time" required value="08:00"></label><label>结束时间<input name="endTime" type="time" required value="09:40"></label></div>
+      <label>上课地点 <span class="required">*</span><input name="location" required maxlength="120" placeholder="例如：教学楼 A · 302"></label>
+      <label>备注 <span class="optional">选填</span><textarea name="notes" maxlength="500" rows="2" placeholder="老师、携带物品或其他事项…"></textarea></label>
+      <section class="course-adjustments"><div class="course-field-heading"><h3>调休与临时调整</h3><span>保存课程后生效</span></div><div id="course-adjustment-list"></div><div class="adjustment-add-buttons"><button type="button" class="secondary" data-adjustment-add="cancel">停课</button><button type="button" class="secondary" data-adjustment-add="move">调课</button><button type="button" class="secondary" data-adjustment-add="extra">加课</button></div></section>
+      <p class="form-hint" id="course-conflict" role="status">课程每周重复，自动显示在学习日历中。</p>
+      <button class="primary full-width" type="submit"><span data-icon="check"></span>保存课程</button>
+      <button class="text-button danger full-width" type="button" id="course-delete" hidden>删除这门课程</button>
+    </form>
+  </dialog>
+  <dialog id="course-adjustment-dialog" class="sheet" aria-labelledby="adjustment-title"><form id="course-adjustment-form">
+    <div class="sheet-head"><div><p class="eyebrow">安排有变，也记得下来</p><h2 id="adjustment-title">临时课程调整</h2></div><button type="button" class="icon-button" data-close="course-adjustment-dialog" data-icon="close" aria-label="关闭课程调整"></button></div>
+    <input type="hidden" name="id"><input type="hidden" name="action" value="cancel"><input type="hidden" name="fromDate"><input type="hidden" name="toDate">
+    <div class="segmented adjustment-type"><button type="button" data-adjustment-kind="cancel">停课</button><button type="button" data-adjustment-kind="move">调课</button><button type="button" data-adjustment-kind="extra">加课</button></div>
+    <p class="form-hint" id="adjustment-description"></p>
+    <button type="button" class="date-field adjustment-date" data-date-target="fromDate"><span class="field-icon" data-icon="calendar"></span><span id="adjustment-from-label">原上课日期</span><strong data-date-display="fromDate"></strong><small data-date-weekday="fromDate"></small></button>
+    <div id="adjustment-to-wrap"><button type="button" class="date-field adjustment-date" data-date-target="toDate"><span class="field-icon" data-icon="calendar"></span><span>改到哪一天</span><strong data-date-display="toDate"></strong><small data-date-weekday="toDate"></small></button></div>
+    <div id="adjustment-time-wrap"><div class="time-pair"><label>开始时间<input type="time" name="startTime" required></label><label>结束时间<input type="time" name="endTime" required></label></div><label>上课地点 <span class="optional">选填</span><input name="location" maxlength="120" placeholder="留空则沿用课程地点"></label></div>
+    <button class="primary full-width" type="submit">加入课程调整</button>
+  </form></dialog>
+  <dialog id="semester-dialog" class="sheet" aria-labelledby="semester-title"><form id="semester-form"><div class="sheet-head"><div><p class="eyebrow">按学期计算单双周</p><h2 id="semester-title">学期设置</h2></div><button type="button" class="icon-button" data-close="semester-dialog" data-icon="close" aria-label="关闭"></button></div><p class="subtitle">设置第 1 周的周一。单周课程在第 1、3、5…周上课，双周课程在第 2、4、6…周上课。</p><input name="semesterStart" type="hidden"><button type="button" class="date-field semester-date" data-date-target="semesterStart"><span class="field-icon" data-icon="calendar"></span><span>学期第 1 周</span><strong data-date-display="semesterStart">选择日期</strong><small data-date-weekday="semesterStart"></small></button><p class="form-hint">选择日期后，会自动使用该周的周一作为起点。</p><button type="submit" class="primary full-width">保存学期设置</button></form></dialog>
+  <dialog id="date-picker-dialog" class="sheet date-picker-sheet" aria-labelledby="date-picker-title">
+    <div class="sheet-head"><div><p class="eyebrow">为计划选一个好日子</p><h2 id="date-picker-title">选择日期</h2></div><button type="button" class="icon-button" data-close="date-picker-dialog" data-icon="close" aria-label="关闭日期选择器"></button></div>
+    <div id="date-picker-content"></div>
+    <div class="picker-footer"><button type="button" class="secondary" id="picker-today">今天</button><button type="button" class="primary" id="picker-confirm">确认日期</button></div>
+  </dialog>
+  <dialog id="course-import-dialog" class="sheet import-sheet" aria-labelledby="course-import-title">
+    <div class="sheet-head"><div><p class="eyebrow">从一张截图开始</p><h2 id="course-import-title">导入课程表</h2></div><button type="button" class="icon-button" data-close="course-import-dialog" data-icon="close" aria-label="关闭截图导入"></button></div>
+    <div class="import-intro"><span class="import-mark" data-icon="grid"></span><div><h3>把课表，轻轻放进来</h3><p>选择完整、正向、文字清晰的截图。图片在本机识别，保存前可以逐项校对。</p></div></div>
+    <div class="import-controls"><button type="button" class="secondary" id="import-pick"><span data-icon="upload"></span>选择截图</button><button type="button" class="primary" id="import-recognize" disabled>开始识别</button></div>
+    <input type="file" id="course-screenshot" accept="image/png,image/jpeg,image/webp" hidden>
+    <div class="ocr-status-wrap" aria-live="polite"><p id="ocr-status">选择一张清晰的课表截图</p><progress id="ocr-progress" value="0" max="100" aria-label="识别进度"></progress></div>
+    <details id="import-image-wrap" class="import-image-wrap" open hidden><summary>查看原图，核对课程</summary><img id="import-image" alt="待导入的课程表截图"></details>
+    <div id="import-review" hidden>
+      <div class="import-review-heading"><h3 id="import-summary"></h3><p id="import-hint"></p></div>
+      <details class="period-settings"><summary>截图只有节次？设置学校作息</summary><p class="form-hint">填写对应节次的真实时间，仅补充候选课程的空白时间。</p><div id="period-times"></div><button type="button" class="secondary full-width" id="apply-periods">应用到识别结果</button></details>
+      <form id="course-import-form"><div id="import-candidates"></div><button type="button" class="secondary full-width" id="import-add-row"><span data-icon="plus"></span>补充一门课程</button><div class="import-save-wrap"><p>确认后合并到课程表，相同课程会自动跳过。</p><button type="submit" class="primary full-width" id="import-save">确认导入课程</button></div></form>
+      <details class="source-text raw-result"><summary>查看全部识别文字</summary><pre id="import-raw"></pre></details>
+    </div>
+  </dialog>
+  <div id="toast" class="toast" popover="manual" role="status" aria-live="polite"></div>
+  <dialog id="day-transfer-dialog" class="sheet day-transfer-sheet" aria-labelledby="day-transfer-title"><form id="day-transfer-form">
+    <div class="sheet-head"><div><p class="eyebrow">一整天的课程，一起调整</p><h2 id="day-transfer-title">批量调休</h2></div><button type="button" class="icon-button" data-close="day-transfer-dialog" data-icon="close" aria-label="关闭批量调休"></button></div>
+    <p class="subtitle">选择调休前和调休后日期，自动带入当天全部课程的时间与地点。</p>
+    <input type="hidden" name="fromDate"><input type="hidden" name="toDate"><input type="hidden" name="mode" value="move">
+    <div class="transfer-dates"><button type="button" class="date-field" data-date-target="fromDate"><span class="field-icon" data-icon="calendar"></span><span>调休前 · 原上课日</span><strong data-date-display="fromDate"></strong><small data-date-weekday="fromDate"></small></button><span class="transfer-arrow" aria-hidden="true">→</span><button type="button" class="date-field" data-date-target="toDate"><span class="field-icon" data-icon="calendar"></span><span>调休后 · 新上课日</span><strong data-date-display="toDate"></strong><small data-date-weekday="toDate"></small></button></div>
+    <div class="segmented transfer-mode"><button type="button" data-transfer-mode="move" class="active" aria-pressed="true">整体调课</button><button type="button" data-transfer-mode="copy" aria-pressed="false">复制补课</button></div>
+    <p class="form-hint" id="transfer-mode-hint">原日期当天停课，全部课程移到新日期；其他周照常上课。</p>
+    <label class="inline-checkbox transfer-replace"><input type="checkbox" name="replaceTarget"><span>调休后当天原有课程停课</span></label>
+    <div id="transfer-preview" aria-live="polite"></div>
+    <p class="form-hint transfer-note">按学期单双周及上课周数读取，仅调整所选日期，最多第 20 周。</p>
+    <button class="primary full-width" type="submit" id="transfer-apply" disabled>一键调休</button>
+  </form></dialog>
+  <script src="./motion.js" defer></script>
+  <script src="./course-schedule.js" defer></script>
+  <script src="./timetable.js" defer></script>
+  <script src="./date-picker.js" defer></script>
+  <script src="./course-import.js" defer></script>
+  <script src="./day-transfer.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

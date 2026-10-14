@@ -1,0 +1,17 @@
+[
+  {"weekday":1,"title":"人工智能导论…","startTime":"10:20","endTime":"11:50","location":"宏智楼215","titleLines":["人工智能","导论.."],"placeLines":["宏智楼2","15"],"period":2},
+  {"weekday":1,"title":"离散数学","startTime":"15:50","endTime":"18:10","location":"宏智楼120","titleLines":["离散数学"],"placeLines":["宏智楼1","20"],"period":4},
+  {"weekday":2,"title":"计算机组成原…","startTime":"10:20","endTime":"11:50","location":"臻智楼327","titleLines":["计算机组","成原.."],"placeLines":["臻智楼3","27"],"period":2},
+  {"weekday":2,"title":"人工智能导论…","startTime":"15:50","endTime":"18:10","location":"宏智楼213","titleLines":["人工智能","导论.."],"placeLines":["宏智楼2","13"],"period":4},
+  {"weekday":2,"title":"Linux基…","startTime":"19:00","endTime":"21:20","location":"臻智楼323","titleLines":["Linux","基.."],"placeLines":["臻智楼3","23"],"period":5},
+  {"weekday":3,"title":"大学体育III","startTime":"10:20","endTime":"11:50","location":"室外羽毛球场1","titleLines":["大学体育","III"],"placeLines":["室外羽毛","球场1"],"period":2},
+  {"weekday":3,"title":"计算机组成原…","startTime":"14:00","endTime":"15:30","location":"信智楼B333室","titleLines":["计算机组","成原.."],"placeLines":["信智楼B","333室"],"period":3},
+  {"weekday":3,"title":"面向对象程序…","startTime":"15:50","endTime":"18:10","location":"信智楼B414室","titleLines":["面向对象","程序.."],"placeLines":["信智楼B","414室"],"period":4},
+  {"weekday":3,"title":"面向对象程序…","startTime":"19:00","endTime":"21:20","location":"宏智楼222","titleLines":["面向对象","程序.."],"placeLines":["宏智楼2","22"],"period":5},
+  {"weekday":4,"title":"英语听说写训…","startTime":"10:20","endTime":"11:50","location":"臻智楼218","titleLines":["英语听说","写训.."],"placeLines":["臻智楼2","18"],"period":2},
+  {"weekday":5,"title":"数据库原理及…","startTime":"08:30","endTime":"10:00","location":"信智楼B411室","titleLines":["数据库原","理及.."],"placeLines":["信智楼B","411室"],"period":1},
+  {"weekday":5,"title":"计算机组成原…","startTime":"14:00","endTime":"15:30","location":"宏智楼120","titleLines":["计算机组","成原.."],"placeLines":["宏智楼1","20"],"period":3},
+  {"weekday":5,"title":"马克思主义基…","startTime":"15:50","endTime":"18:10","location":"宏智楼102","titleLines":["马克思主","义基.."],"placeLines":["宏智楼1","02"],"period":4},
+  {"weekday":5,"title":"数据库原理及…","startTime":"19:00","endTime":"21:20","location":"宏智楼202","titleLines":["数据库原","理及.."],"placeLines":["宏智楼2","02"],"period":5},
+  {"weekday":7,"title":"写作与沟通","startTime":"19:00","endTime":"21:20","location":"宏智楼213","titleLines":["写作与沟","通"],"placeLines":["宏智楼2","13"],"period":5}
+]

@@ -1,0 +1,27 @@
+:root{--motion-ease:cubic-bezier(.22,1,.36,1);--motion-spring:cubic-bezier(.2,.9,.3,1.12)}
+html{scroll-padding-top:calc(96px + env(safe-area-inset-top));scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom))}#main button,#main a{scroll-margin-top:96px;scroll-margin-bottom:96px}
+body,.app-shell,.app-header,.bottom-nav,.hero,.stat,.task-card,.exam-card,.activity-card,.day-transfer-banner,.sheet,.confirm-box,.calendar-panel,.timetable-panel,.date-field,.course-card{transition:background-color .36s var(--motion-ease),color .36s var(--motion-ease),border-color .36s var(--motion-ease),box-shadow .36s var(--motion-ease)}
+button,.primary,.secondary,.icon-button,.date-field,.week-day,.picker-day,.teaching-weeks button,.weekday-choice button{transition:transform .32s var(--motion-spring),background-color .3s var(--motion-ease),color .3s var(--motion-ease),border-color .3s var(--motion-ease),box-shadow .3s var(--motion-ease);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:active:not(:disabled){transform:scale(.96)}.icon-button:active:not(:disabled){transform:scale(.9)}a{ -webkit-tap-highlight-color:transparent}.bottom-nav a:active{opacity:1;transform:scale(.94)}
+.bottom-nav{isolation:isolate;--nav-index:0}.bottom-nav:before{content:"";position:absolute;left:15px;top:9px;bottom:calc(10px + env(safe-area-inset-bottom));width:calc((100% - 30px)/5);border-radius:15px;background:#eee9f7;transform:translateX(calc(var(--nav-index)*100%));transition:transform .46s var(--motion-spring),background-color .36s var(--motion-ease);z-index:-1}.bottom-nav a{transition:color .28s var(--motion-ease),transform .32s var(--motion-spring);background:transparent!important}.bottom-nav a.active svg{animation:motion-nav .44s var(--motion-spring)}[data-theme="dark"] .bottom-nav:before{background:#43354f}
+.bottom-nav{z-index:2147483647}
+.segmented:before{transition:transform .42s var(--motion-spring),background-color .36s var(--motion-ease)}
+.sheet[open],.confirm-box[open]{animation:motion-sheet .44s var(--motion-ease) both;opacity:1;transform:translateY(0) scale(1)}.sheet::backdrop,.confirm-box::backdrop{animation:motion-backdrop .32s var(--motion-ease) both;backdrop-filter:blur(6px)}
+.sheet[data-closing]::backdrop,.confirm-box[data-closing]::backdrop{animation:motion-backdrop-out .18s ease-in both}
+[data-motion-theme] *,[data-motion-theme] *:before,[data-motion-theme] *:after{transition:none!important}::view-transition-group(root){animation-duration:.56s}::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}::view-transition-old(root){z-index:1}::view-transition-new(root){z-index:2}
+/* Keep each snapshot at its original scroll position and size. An opaque,
+   viewport-height canvas hides the live page beneath transparent/short images. */
+[data-motion-page]{view-transition-name:none}[data-motion-page] #main{view-transition-name:study-page}
+::view-transition-group(study-page){animation:none;transform:none;left:var(--motion-page-left);top:0;width:var(--motion-page-width);height:100%;background:var(--motion-page-background)}
+::view-transition-image-pair(study-page){isolation:isolate;height:100%}
+/* Complementary opacity and additive blending prevent a dark midpoint. */
+::view-transition-old(study-page),::view-transition-new(study-page){mix-blend-mode:plus-lighter;object-fit:fill}
+::view-transition-old(study-page){top:var(--motion-page-old-top);height:var(--motion-page-old-height);animation:motion-page-out .28s ease-in-out both}
+::view-transition-new(study-page){top:var(--motion-page-new-top);height:var(--motion-page-new-height);animation:motion-page-in .28s ease-in-out both}
+@keyframes motion-page-out{from{opacity:1}to{opacity:0}}@keyframes motion-page-in{from{opacity:0}to{opacity:1}}
+/* Clip both snapshots to the content area so the header and bottom navigation
+   stay live and respond to touch throughout the transition. */
+[data-motion-page]::view-transition{clip-path:inset(var(--motion-page-top,77px) 0 var(--motion-page-bottom,90px) 0);pointer-events:none}
+@keyframes motion-sheet{from{opacity:0;transform:translateY(26px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes motion-backdrop{from{opacity:0}to{opacity:1}}@keyframes motion-backdrop-out{to{opacity:0}}@keyframes motion-nav{0%{transform:scale(.92)}55%{transform:scale(1.06)}100%{transform:scale(1)}}
+@media(max-width:360px){.bottom-nav:before{left:11px;width:calc((100% - 22px)/5)}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}.motion-snapshot{display:none}}
