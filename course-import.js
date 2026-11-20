@@ -75,13 +75,20 @@
     if(!match||!match.index)return null;
     return {title:cleanField(text.slice(0,match.index)),location:cleanField(text.slice(match.index+match[0].length)).replace(/〈(?=原)/g,'('),code:match[1]};
   }
+  function detailedFields(raw){
+    const text=tidy(raw).replace(/[ \t|]/g,'').replace(/^(\d{7,10})一/,'$1-').replace(/【/g,'[').replace(/】/g,']').replace(/（/g,'(').replace(/）/g,')'),week=text.match(/(?<!\d)(?:第)?\d{1,2}(?:\s*-\s*\d{1,2})?\s*周(?:\s*\([单双]\))?/),head=text.match(/^(?:(\d{7,10})-)?([\s\S]+?)\[\s*(\d{1,3})\s*\]/);
+    if(!head||!week||week.index<head[0].length)return null;
+    const period=text.slice(week.index).match(/(?:第)?(\d{1,2})\s*-\s*(\d{1,2})\s*节/);if(!period||Number(period[1])<1||Number(period[2])>12||Number(period[1])>Number(period[2]))return null;
+    const title=cleanField(head[2].replace(/\n/g,'')).replace(/^\((?=[A-Z])/,'');
+    return {title,location:cleanField(text.slice(week.index+period.index+period[0].length).replace(/\n/g,'')).replace(/^[.。]+/,''),courseCode:head[1]||'',section:head[3],teacher:cleanField(text.slice(head[0].length,week.index).replace(/\n/g,'')),weekText:week[0].replace(/\s/g,''),periodStart:Number(period[1]),periodEnd:Number(period[2])};
+  }
   function candidate(text,weekday=0,confidence=0,{joinTitle=false,packed=false}={}){
     const raw=tidy(text),lines=raw.split(/\n+/).map(tidy).filter(Boolean),times=timeRange(raw),period=raw.match(/(?:第\s*)?(\d{1,2})\s*[-,、]\s*(\d{1,2})\s*节/)||raw.match(/第\s*(\d{1,2})\s*节/);
     const repeatText=compact(raw),repeat=/单周|[（(]\s*单\s*[）)]|\bodd\b/i.test(repeatText) ? 'odd' : /双周|[（(]\s*双\s*[）)]|\beven\b/i.test(repeatText) ? 'even' : 'all';
-    const fields=packed&&packedFields(lines)||courseFields(lines,joinTitle),{title,location}=fields;
+    const fields=detailedFields(raw)||packed&&packedFields(lines)||courseFields(lines,joinTitle),{title,location}=fields;
     if(!title)return null;
     const weeks=raw.match(/(?:第\s*)?\d+\s*(?:[-,、]\s*\d+)?\s*周(?:[（(][单双][）)])?/g);
-    return {title:title.slice(0,80),weekday:weekday||dayOf(raw),repeat,startTime:times?.startTime||'',endTime:times?.endTime||'',location:location.slice(0,120),notes:[fields.code ? '原图编号：'+fields.code : '',weeks ? '原图周次：'+weeks.join('、')+'；请核对适用范围。' : ''].filter(Boolean).join('\n'),weeks:schedule.weeksFromText(raw)||[...schedule.ALL_WEEKS],adjustments:[],periodStart:period ? Number(period[1]) : 0,periodEnd:period ? Number(period[2]||period[1]) : 0,confidence,source:raw};
+    return {title:title.slice(0,80),weekday:weekday||dayOf(raw),repeat,startTime:times?.startTime||'',endTime:times?.endTime||'',location:location.slice(0,120),notes:[fields.courseCode ? '原图课程代码：'+fields.courseCode : '',fields.section ? '原图班号：'+fields.section : '',fields.teacher ? '原图教师：'+fields.teacher : '',fields.code ? '原图编号：'+fields.code : '',weeks ? '原图周次：'+weeks.join('、')+'；请核对适用范围。' : ''].filter(Boolean).join('\n'),weeks:schedule.weeksFromText(fields.weekText||raw)||[...schedule.ALL_WEEKS],adjustments:[],periodStart:fields.periodStart||(period ? Number(period[1]) : 0),periodEnd:fields.periodEnd||(period ? Number(period[2]||period[1]) : 0),confidence,source:raw};
   }
   function rowsFromWords(words){
     const rows=[];for(const word of [...words].sort((a,b)=>a.bbox.y0-b.bbox.y0||a.bbox.x0-b.bbox.x0)){const h=Math.max(8,word.bbox.y1-word.bbox.y0),mid=(word.bbox.y0+word.bbox.y1)/2;let row=rows.find(row=>Math.abs(row.mid-mid)<Math.max(h,row.height)*.55);if(!row){row={mid,height:h,words:[]};rows.push(row);}row.words.push(word);}
@@ -156,6 +163,33 @@
     }
     return cells.slice(0,100);
   }
+  function ruledCells(layout,pixels){
+    if(!layout)return [];const {width,height,data}=pixels;
+    function edges(left,right){
+      left=Math.max(0,Math.ceil(left));right=Math.min(width,Math.floor(right));const hits=[];
+      for(let y=Math.ceil(layout.top);y<height;y++){let count=0,total=0;for(let x=left;x<right;x+=3){const i=(y*width+x)*4,r=data[i],g=data[i+1],b=data[i+2];total++;if(b-r>12&&g-r>2&&b>=g&&r>100)count++;}if(total&&count/total>.8)hits.push(y);}
+      const groups=[];for(const y of hits){if(!groups.length||y-groups.at(-1).at(-1)>3)groups.push([y]);else groups.at(-1).push(y);}return groups.map(group=>({top:group[0],bottom:group.at(-1)+1}));
+    }
+    const leftEdge=layout.firstX-layout.spacing*.5,axis=edges(leftEdge-layout.spacing*.8,leftEdge-layout.spacing*.1),periods=layout.axisRows.map(row=>{const match=compact(row.text).match(/^(\d{1,2})-(\d{1,2})节$/),y=(row.bbox.y0+row.bbox.y1)/2,index=axis.findIndex((edge,i)=>y>=edge.bottom&&y<(axis[i+1]?.top||0));return match&&index>=0 ? {top:axis[index].bottom,bottom:axis[index+1].top,periodStart:Number(match[1]),periodEnd:Number(match[2])} : null;}).filter(Boolean),cells=[];
+    for(let weekday=1;weekday<=7;weekday++){
+      const center=layout.firstX+(weekday-1)*layout.spacing,borders=edges(center-layout.spacing*.42,center+layout.spacing*.42),left=Math.max(0,Math.ceil(center-layout.spacing*.49)),right=Math.min(width,Math.floor(center+layout.spacing*.49));
+      for(let i=0;i<borders.length-1;i++){const top=borders[i].bottom+2,bottom=borders[i+1].top-2;if(bottom-top<layout.spacing*.2)continue;const words=layout.words.filter(word=>{const x=(word.bbox.x0+word.bbox.x1)/2,y=(word.bbox.y0+word.bbox.y1)/2;return x>=left&&x<right&&y>=top&&y<bottom;});if(!words.length)continue;
+        cells.push({weekday,detailed:true,band:periods.find(period=>(top+bottom)/2>=period.top&&(top+bottom)/2<period.bottom)||{},rectangle:{left,top,width:right-left,height:bottom-top}});
+      }
+    }
+    return cells.slice(0,100);
+  }
+  function uniqueDetailed(items){
+    const titles=new Map();for(const item of items){const code=item.notes.match(/原图课程代码：(\d+)/)?.[1],section=item.notes.match(/原图班号：(\d+)/)?.[1];if(!code)continue;const key=code+'|'+section;if(!titles.has(key))titles.set(key,new Map());const votes=titles.get(key);for(const variant of item._titleVariants||[{title:item.title,score:item._ocrScore??item.confidence}]){const previous=votes.get(variant.title)||{count:0,score:0};votes.set(variant.title,{count:previous.count+1,score:Math.max(previous.score,variant.score)});}}
+    const seen=new Map();for(const original of items){const item={...original},code=item.notes.match(/原图课程代码：(\d+)/)?.[1],section=item.notes.match(/原图班号：(\d+)/)?.[1],votes=titles.get(code+'|'+section),title=votes&&[...votes].sort((a,b)=>b[1].count-a[1].count||b[1].score-a[1].score)[0]?.[0];if(title&&item.confidence<75&&title!==item.title){item.title=title;item.notes+='\n同一课程代码的名称已参考其他格子，请核对。';}const key=[item.weekday,code||item.title,item.location,item.startTime,item.endTime,item.periodStart,item.periodEnd,item.repeat,item.weeks.join(','),section].join('|'),previous=seen.get(key);if(!previous||(item._ocrScore??item.confidence)>(previous._ocrScore??previous.confidence))seen.set(key,item);}return [...seen.values()];
+  }
+  function selectDetailed(parts,weekday){
+    const choices=parts.filter(part=>detailedFields(part.text||'')).map(part=>{const item=candidate(part.text,weekday,textConfidence(part));return {item,score:(part.confidence||0)+(detailedFields(part.text).courseCode ? 10 : 0)-(/[\\¥|]/.test(item.title) ? 30 : 0)};}).sort((a,b)=>b.score-a.score);
+    if(!choices.length)return null;const item=choices[0].item;item._ocrScore=choices[0].score;
+    const code=item.notes.match(/原图课程代码：(\d+)/)?.[1],compatible=choices.filter(choice=>choice.item.notes.match(/原图课程代码：(\d+)/)?.[1]===code),places=compatible.map(choice=>({...choice,placeScore:choice.score+(/^(?:无|未指定)$|[楼馆场室]|[-·]\d{2,5}/.test(choice.item.location) ? 10 : -15)})).sort((a,b)=>b.placeScore-a.placeScore);item._titleVariants=compatible.map(choice=>({title:choice.item.title,score:choice.score}));if(places.length){item.location=places[0].item.location;item.source=[...new Set([item.source,places[0].item.source])].join('\n\n');}
+    if(choices.some(({item:other})=>['title','location','repeat','periodStart','periodEnd','notes'].some(field=>other[field]!==item[field])||other.weeks.join(',')!==item.weeks.join(','))){item.confidence=Math.min(item.confidence,74);item.notes+='\n不同识别结果存在差异，请重点核对课程、周次和地点。';}
+    return item;
+  }
   function parseOCR(data){
     let drafts=[];const layout=ocrLayout(data);
     if(layout){
@@ -180,7 +214,7 @@
   }
   function applyPeriods(item,periods){const first=periods[item.periodStart],last=periods[item.periodEnd];if(!item.startTime&&first?.startTime)item.startTime=first.startTime;if(!item.endTime&&last?.endTime)item.endTime=last.endTime;return item;}
   function mergeCourses(existing,incoming){const signature=course=>[course.title,course.weekday,course.repeat||'all',course.startTime,course.endTime,course.location,(course.weeks||schedule.ALL_WEEKS).filter(week=>schedule.matchesRepeat(week,course.repeat)).sort((a,b)=>a-b).join(',')].join('|'),seen=new Set(existing.map(signature));let skipped=0;const added=incoming.filter(course=>{const key=signature(course);if(seen.has(key)){skipped++;return false;}seen.add(key);return true;});return {courses:[...existing,...added],added:added.length,skipped};}
-  if(typeof module!=='undefined'&&module.exports)module.exports={candidate,parseOCR,dayOf,timeRange,applyPeriods,mergeCourses,ocrLayout,gridCells,numericBands,coloredCells,selectPacked};
+  if(typeof module!=='undefined'&&module.exports)module.exports={candidate,parseOCR,dayOf,timeRange,applyPeriods,mergeCourses,ocrLayout,gridCells,numericBands,coloredCells,selectPacked,ruledCells,uniqueDetailed};
   if(typeof document==='undefined')return;
   const $=selector=>document.querySelector(selector);let api,worker=null,job=0,drafts=[],source='',preview='';
   const dialog=$('#course-import-dialog'),form=$('#course-import-form');
@@ -189,7 +223,7 @@
     $('#import-candidates').innerHTML=drafts.map((item,index)=>`<article class="import-candidate" data-import-index="${index}"><div class="import-candidate-head"><label class="inline-checkbox"><input type="checkbox" name="include-${index}" checked><span>课程 ${String(index+1).padStart(2,'0')}</span></label><span class="review-badge">${item.confidence<75 ? '重点核对' : !item.weekday||!item.startTime||!item.endTime||!item.location ? '待补充' : '请核对'}</span><button type="button" class="icon-button" data-remove-import="${index}" aria-label="移除课程">${api.icon('close')}</button></div><label>课程名称<input name="title-${index}" value="${api.escape(item.title)}" maxlength="80" required></label><div class="import-pair"><label>上课日<select name="weekday-${index}" required><option value="">请选择</option>${DAYS.map((day,i)=>`<option value="${i+1}" ${item.weekday===i+1 ? 'selected' : ''}>周${day}</option>`).join('')}</select></label><label>上课周次<select name="repeat-${index}">${['all','odd','even'].map((repeat,i)=>`<option value="${repeat}" ${item.repeat===repeat ? 'selected' : ''}>${['每周','单周','双周'][i]}</option>`).join('')}</select></label></div><details class="import-week-settings"><summary>上课周数 · <span data-import-week-summary>${schedule.summary(item.weeks)}</span></summary><input type="hidden" name="weeks-${index}"><div class="week-picker" data-week-input="weeks-${index}"></div></details><div class="time-pair"><label>开始时间<input type="time" name="startTime-${index}" value="${item.startTime}" required></label><label>结束时间<input type="time" name="endTime-${index}" value="${item.endTime}" required></label></div><label>上课地点<input name="location-${index}" value="${api.escape(item.location)}" maxlength="120" required placeholder="补充教室或地点"></label><label>备注<textarea name="notes-${index}" rows="2" maxlength="500">${api.escape(item.notes)}</textarea></label>${item.periodStart ? `<p class="form-hint">原图：第 ${item.periodStart}${item.periodEnd!==item.periodStart ? '–'+item.periodEnd : ''} 节，可在上方设置作息填入时间。</p>` : ''}<details class="source-text"><summary>查看原图识别文字</summary><p>${api.escape(item.source)}</p></details></article>`).join('');
     drafts.forEach((item,index)=>{form.elements[`include-${index}`].checked=item.include!==false;});
     drafts.forEach((item,index)=>schedule.renderPicker(document.querySelector(`[data-week-input="weeks-${index}"]`),item.weeks||schedule.ALL_WEEKS,item.repeat));
-    $('#import-review').hidden=false;$('#import-summary').textContent=drafts.length ? `识别出 ${drafts.length} 条候选课程` : '没有自动找到课程';$('#import-hint').textContent=drafts.length ? drafts.some(item=>item.periodStart&&!item.startTime) ? '原图只有节次，请展开学校作息填入时间。单周视图仅导入截图中的周次；请核对适用周数、课程名称和截断的地点。' : '对照原图检查名称、星期、时间、地点与单双周，确认后再保存。' : '可在下方查看识别文字并手动补充课程；清晰、正向的课表截图更容易识别。';$('#import-save').disabled=!drafts.length;updateIncludes();
+    $('#import-review').hidden=false;$('#import-summary').textContent=drafts.length ? `识别出 ${drafts.length} 条候选课程` : '没有自动找到课程';$('#import-hint').textContent=drafts.length ? drafts.some(item=>item.periodStart&&!item.startTime) ? '原图只有节次，请展开学校作息填入时间，并核对周数、单双周、课程名称和地点。' : '对照原图检查名称、星期、时间、地点与单双周，确认后再保存。' : '可在下方查看识别文字并手动补充课程；清晰、正向的课表截图更容易识别。';$('#import-save').disabled=!drafts.length;updateIncludes();
   }
   function readDrafts(){drafts=drafts.map((item,index)=>{for(const field of ['title','weekday','repeat','startTime','endTime','location','notes'])item[field]=form.elements[`${field}-${index}`].value;item.weekday=Number(item.weekday);item.weeks=schedule.readPicker(document.querySelector(`[data-week-input="weeks-${index}"]`));item.include=form.elements[`include-${index}`].checked;return item;});}
   function updateIncludes(){let selected=0;drafts.forEach((item,index)=>{const checked=form.elements[`include-${index}`].checked;selected+=checked;document.querySelector(`[data-import-index="${index}"]`).classList.toggle('excluded',!checked);for(const field of ['title','weekday','repeat','startTime','endTime','location','notes'])form.elements[`${field}-${index}`].disabled=!checked;});$('#import-save').disabled=!selected;$('#import-save').textContent=`确认导入 ${selected} 门课程`;}
@@ -205,6 +239,7 @@
     const context=canvas.getContext('2d');context.fillStyle='white';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(img,rectangle.left,rectangle.top,rectangle.width,rectangle.height,padding,padding,rectangle.width*scale,rectangle.height*scale);
     if(adaptive==='color')return canvas.toDataURL('image/png');
     const pixels=context.getImageData(0,0,canvas.width,canvas.height),gray=index=>(pixels.data[index]*299+pixels.data[index+1]*587+pixels.data[index+2]*114)/1000;
+    if(adaptive==='document'){for(let i=0;i<pixels.data.length;i+=4){const r=pixels.data[i],g=pixels.data[i+1],b=pixels.data[i+2],value=b-r>12&&g-r>2&&b>=g&&r>100 ? 255 : Math.max(0,255-(255-gray(i))*1.4);pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;}context.putImageData(pixels,0,0);return canvas.toDataURL('image/png');}
     const corners=[[padding,padding],[canvas.width-padding-1,padding],[padding,canvas.height-padding-1],[canvas.width-padding-1,canvas.height-padding-1]].map(([x,y])=>gray((y*canvas.width+x)*4)).sort((a,b)=>a-b),dark=corners[2]<128;
     const tone=index=>adaptive ? dark ? 255-Math.max(pixels.data[index],pixels.data[index+1],pixels.data[index+2]) : Math.min(pixels.data[index],pixels.data[index+1],pixels.data[index+2]) : dark ? 255-gray(index) : gray(index);
     let threshold=170;
@@ -235,21 +270,22 @@
         layout.bands=numericBands(rowsFromWords(words),img.naturalHeight);await ownedWorker.setParameters({tessedit_char_whitelist:''});
         cards=coloredCells(layout,context.getImageData(0,0,raster.width,raster.height));
       }
-      const cells=cards.length ? cards : gridCells(layout,img.naturalWidth,img.naturalHeight),viewWeek=cards.length&&compact(source).match(/第\s*(\d{1,2})\s*周/);
+      const tables=[...source.matchAll(/\d{7,10}\s*-/g)].length>=2 ? ruledCells(layout,context.getImageData(0,0,raster.width,raster.height)) : [],cells=tables.length ? tables : cards.length ? cards : gridCells(layout,img.naturalWidth,img.naturalHeight),viewWeek=cards.length&&!tables.length&&compact(source).match(/第\s*(\d{1,2})\s*周/);
       if(cells.length){
-        refining=true;const refined=[];if(cards.length)await ownedWorker.reinitialize('chi_sim');await ownedWorker.setParameters({tessedit_pageseg_mode:'6'});
+        refining=true;const refined=[];if(cards.length&&!tables.length)await ownedWorker.reinitialize('chi_sim');await ownedWorker.setParameters({tessedit_pageseg_mode:'6'});
         for(const [index,cell] of cells.entries()){
           if(token!==job)return;status(`正在分别识别课程名与地点 ${index+1}/${cells.length}…`,65+Math.round(index/cells.length*30));
-          let {data:part}=await ownedWorker.recognize(cell.packed ? readableCell(img,cell.rectangle,true) : image,cell.packed ? {} : {rectangle:cell.rectangle},{text:true,blocks:true});if(token!==job)return;
-          let packedItem;
+          let {data:part}=await ownedWorker.recognize(cell.detailed ? readableCell(img,cell.rectangle,'document') : cell.packed ? readableCell(img,cell.rectangle,true) : image,(cell.packed||cell.detailed) ? {} : {rectangle:cell.rectangle},{text:true,blocks:true});if(token!==job)return;
+          let packedItem,detailedItem;
           if(cell.packed){const {data:retry}=await ownedWorker.recognize(readableCell(img,cell.rectangle,'color'),{},{text:true,blocks:true});if(token!==job)return;const r=cell.rectangle,words=layout.words.filter(word=>{const x=(word.bbox.x0+word.bbox.x1)/2,y=(word.bbox.y0+word.bbox.y1)/2;return x>=r.left&&x<r.left+r.width&&y>=r.top&&y<r.top+r.height;}),rows=rowsFromWords(words);packedItem=selectPacked([part,retry,{blocks:[{paragraphs:[{lines:rows}]}],text:rows.map(row=>row.text).join('\n'),confidence:rows.length ? Math.min(...rows.map(row=>row.confidence)) : 0}],cell.weekday);}
-          if(!cell.packed&&textConfidence(part)<75){const {data:retry}=await ownedWorker.recognize(readableCell(img,cell.rectangle),{},{text:true,blocks:true});if(token!==job)return;if(retry.confidence>=85&&retry.confidence>part.confidence+6&&candidate(retry.text,cell.weekday,0,{joinTitle:true})?.location)part=retry;}
-          let item=packedItem||candidate(part.text,cell.weekday,textConfidence(part),{joinTitle:true,packed:cell.packed});const fallback=drafts.find(item=>item.weekday===cell.weekday&&(cell.band.startTime ? item.startTime===cell.band.startTime : cell.band.periodStart&&item.periodStart===cell.band.periodStart));
-          if(!item?.location&&fallback)item=fallback;
-          if(!item&&cell.packed)item={title:'',weekday:cell.weekday,repeat:'all',startTime:'',endTime:'',location:'',notes:'这格文字未能可靠识别，请对照原图补充。',weeks:[...schedule.ALL_WEEKS],adjustments:[],periodStart:0,periodEnd:0,confidence:0,source:part.text||''};
+          if(cell.detailed){await ownedWorker.setParameters({tessedit_pageseg_mode:'11'});const {data:retry}=await ownedWorker.recognize(image,{rectangle:cell.rectangle},{text:true,blocks:true});if(token!==job)return;await ownedWorker.setParameters({tessedit_pageseg_mode:'6'});const r=cell.rectangle,rows=rowsFromWords(layout.words.filter(word=>{const x=(word.bbox.x0+word.bbox.x1)/2,y=(word.bbox.y0+word.bbox.y1)/2;return x>=r.left&&x<r.left+r.width&&y>=r.top&&y<r.top+r.height;}));detailedItem=selectDetailed([part,retry,{text:rows.map(row=>row.text).join('\n'),blocks:[{paragraphs:[{lines:rows}]}],confidence:rows.reduce((sum,row)=>sum+row.confidence,0)/(rows.length||1)}],cell.weekday);}
+          if(!cell.packed&&!cell.detailed&&textConfidence(part)<75){const {data:retry}=await ownedWorker.recognize(readableCell(img,cell.rectangle),{},{text:true,blocks:true});if(token!==job)return;if(retry.confidence>=85&&retry.confidence>part.confidence+6&&candidate(retry.text,cell.weekday,0,{joinTitle:true})?.location)part=retry;}
+          let item=detailedItem||packedItem||candidate(part.text,cell.weekday,textConfidence(part),{joinTitle:true,packed:cell.packed});const fallback=drafts.find(item=>item.weekday===cell.weekday&&(cell.band.startTime ? item.startTime===cell.band.startTime : cell.band.periodStart&&item.periodStart===cell.band.periodStart));
+          if(!cell.detailed&&!item?.location&&fallback)item=fallback;
+          if(!item&&(cell.packed||cell.detailed))item={title:'',weekday:cell.weekday,repeat:'all',startTime:'',endTime:'',location:'',notes:'这格文字未能可靠识别，请对照原图补充。',weeks:[...schedule.ALL_WEEKS],adjustments:[],periodStart:0,periodEnd:0,confidence:0,source:part.text||''};
           if(item){item.startTime||=cell.band.startTime||'';item.endTime||=cell.band.endTime||'';item.periodStart||=cell.band.periodStart;item.periodEnd||=cell.band.periodEnd;if(viewWeek&&Number(viewWeek[1])>=1&&Number(viewWeek[1])<=20){item.weeks=[Number(viewWeek[1])];item.notes+=(item.notes ? '\n' : '')+'原图为第'+viewWeek[1]+'周视图；其他上课周数请对照学校课表补充。';}refined.push(item);}
         }
-        if(refined.length===(cards.length ? cells.length : drafts.length)&&(cards.length||refined.every(item=>item.title&&item.location)))drafts=refined;
+        if(refined.length===((cards.length||tables.length) ? cells.length : drafts.length)&&(cards.length||tables.length||refined.every(item=>item.title&&item.location)))drafts=tables.length ? uniqueDetailed(refined) : refined;
       }
       drafts.forEach(item=>{if(item.title.includes('…'))item.notes+=(item.notes ? '\n' : '')+'原图课程名已截断，完整名称请对照学校课表补充。';if(/[（(〈]/.test(item.location)&&!/[）)]/.test(item.location))item.notes+=(item.notes ? '\n' : '')+'原图地点被裁切，完整楼名、房号请对照学校课表补充。';});
       $('#import-raw').textContent=source||'未识别到文字';status('识别完成，请校对后保存',100);renderDrafts();

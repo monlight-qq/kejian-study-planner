@@ -1,4 +1,4 @@
-Offline OCR distribution for Kejian 1.7.3
+Offline OCR distribution for Kejian 1.7.4
 
 Tesseract.js 6.0.1 and Tesseract.js-core 6.0.0 (Apache-2.0)
 https://github.com/naptha/tesseract.js

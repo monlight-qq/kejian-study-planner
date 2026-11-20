@@ -1,0 +1,18 @@
+[
+  {"weekday":1,"title":"高等数学A","code":"09120001","section":"06","repeat":"all","from":4,"to":18,"periodStart":1,"periodEnd":2,"location":"躬行楼-416"},
+  {"weekday":1,"title":"体育A","code":"11000001","section":"15","repeat":"all","from":1,"to":18,"periodStart":7,"periodEnd":8,"location":"新区操场5"},
+  {"weekday":2,"title":"C语言程序设计","code":"09131002","section":"06","repeat":"all","from":4,"to":16,"periodStart":1,"periodEnd":2,"location":"躬行楼-312"},
+  {"weekday":2,"title":"信息安全导论","code":"09131001","section":"02","repeat":"odd","from":5,"to":15,"periodStart":3,"periodEnd":4,"location":"博学-227"},
+  {"weekday":2,"title":"信息安全导论","code":"09131001","section":"02","repeat":"even","from":4,"to":16,"periodStart":3,"periodEnd":4,"location":"博学-227"},
+  {"weekday":2,"title":"高等数学A","code":"09120001","section":"06","repeat":"all","from":4,"to":18,"periodStart":5,"periodEnd":6,"location":"躬行楼-511"},
+  {"weekday":2,"title":"中华民族共同体概论","code":"07130028","section":"17","repeat":"all","from":4,"to":18,"periodStart":7,"periodEnd":8,"location":"躬行楼-212"},
+  {"weekday":3,"title":"形势与政策I","code":"07000011","section":"41","repeat":"all","from":14,"to":14,"periodStart":1,"periodEnd":2,"location":"无"},
+  {"weekday":3,"title":"思想道德与法治","code":"07000001","section":"22","repeat":"all","from":4,"to":18,"periodStart":3,"periodEnd":4,"location":"躬行楼-427"},
+  {"weekday":3,"title":"高等数学A","code":"09120001","section":"06","repeat":"even","from":4,"to":18,"periodStart":5,"periodEnd":6,"location":"躬行楼-106"},
+  {"weekday":3,"title":"职业生涯与发展规划","code":"09211001","section":"07","repeat":"odd","from":5,"to":9,"periodStart":5,"periodEnd":6,"location":"躬行楼-225"},
+  {"weekday":4,"title":"C语言程序设计","code":"09131002","section":"06","repeat":"all","from":4,"to":16,"periodStart":1,"periodEnd":2,"location":"博学-227"},
+  {"weekday":4,"title":"大学英语I","code":"19000001","section":"61","repeat":"all","from":4,"to":18,"periodStart":5,"periodEnd":6,"location":"躬行楼-304"},
+  {"weekday":5,"title":"大学英语I","code":"19000001","section":"61","repeat":"all","from":4,"to":18,"periodStart":5,"periodEnd":6,"location":"博学-123（第三语音室）"},
+  {"weekday":5,"title":"思想道德与法治","code":"07000001","section":"22","repeat":"odd","from":5,"to":17,"periodStart":7,"periodEnd":8,"location":"躬行楼-227"},
+  {"weekday":6,"title":"C语言课程设计","code":"09221001","section":"06","repeat":"all","from":17,"to":18,"periodStart":1,"periodEnd":8,"location":"博学-229"}
+]

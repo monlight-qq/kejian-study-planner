@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {candidate,parseOCR,mergeCourses,applyPeriods,timeRange,ocrLayout,gridCells,numericBands,coloredCells,selectPacked}=require('../course-import.js');
+const {candidate,parseOCR,mergeCourses,applyPeriods,timeRange,ocrLayout,gridCells,numericBands,coloredCells,selectPacked,ruledCells,uniqueDetailed}=require('../course-import.js');
 test('extracts explicit course times, weekday, location and parity without inventing missing values',()=>{
   const row=candidate('周一 08:00-09:40 高等数学 地点 A302 单周');
   assert.equal(row.title,'高等数学');assert.equal(row.weekday,1);assert.equal(row.location,'A302');assert.equal(row.repeat,'odd');assert.equal(row.startTime,'08:00');assert.equal(row.endTime,'09:40');
@@ -120,4 +120,26 @@ test('colored cards spanning multiple periods remain single courses and blank we
 test('disagreeing local OCR passes visibly require review without joining the location into the name',()=>{
   const item=selectPacked([{text:'算法与\n数据结\n构(01)\n蔚云楼\n(原西教6号',confidence:90},{text:'算法与\n效据结\n构(01)\n前云楼\n(原西教6号',confidence:70}],2);
   assert.equal(item.title,'算法与数据结构');assert.equal(item.location,'蔚云楼(原西教6号');assert.equal(item.confidence,74);assert.match(item.notes,/重点核对/);assert.deepEqual(selectPacked([],1),null);
+});
+
+test('detailed academic tables separate code, wrapped title, section, teacher and numeric schedule',()=>{
+  const row=candidate('09131002-C语言程序\n设计[06]\n外聘11\n4-16周, 星期2, 1-2节,\n躬行楼-312',2,95);
+  assert.equal(row.title,'C语言程序设计');assert.equal(row.location,'躬行楼-312');assert.equal(row.periodStart,1);assert.equal(row.periodEnd,2);assert.equal(row.startTime,'');assert.deepEqual(row.weeks,Array.from({length:13},(_,i)=>i+4));assert.match(row.notes,/课程代码：09131002/);assert.match(row.notes,/班号：06/);assert.match(row.notes,/教师：外聘11/);
+  const second=candidate('19000001-大学英语\nI [61]\n潘文霞\n4-18周,星期5,5-6节,\n博学-123（第三语音\n室）',5,90);assert.equal(second.title,'大学英语I');assert.equal(second.location,'博学-123(第三语音室)');
+  const noPlace=candidate('07000011-形势与政策I[41]\n戴老师\n14周,星期3,1-2节,无',3,90);assert.equal(noPlace.location,'无');assert.deepEqual(noPlace.weeks,[14]);
+  const dash=candidate('09131002一C语言程序设计[06]\n外聘11\n4-16周,星期4,1-2节,博学-227',4,80);assert.equal(dash.title,'C语言程序设计');assert.match(dash.notes,/课程代码：09131002/);
+});
+
+test('same-slot odd/even ranges stay separate and repeated spanning cells merge only with matching schedule and section',()=>{
+  const make=(weeks,period='3-4',section='02',place='博学-227')=>candidate(`09131001-信息安全导论[${section}]\n李老师\n${weeks},星期2,${period}节,${place}`,2,90),odd=make('5-15周(单)'),even=make('4-16周(双)');
+  assert.equal(odd.repeat,'odd');assert.equal(even.repeat,'even');assert.deepEqual(odd.weeks,[5,6,7,8,9,10,11,12,13,14,15]);assert.equal(uniqueDetailed([odd,even]).length,2);
+  const block=make('17-18周','1-8'),duplicate={...block,title:'信息安全导沦',confidence:70};assert.equal(uniqueDetailed([block,duplicate,block,block]).length,1);assert.equal(uniqueDetailed([duplicate,block])[0].title,'信息安全导论');assert.equal(uniqueDetailed([block,make('17-18周','3-4'),make('17-18周','1-8','03'),make('17-18周','1-8','02','博学-229')]).length,4);
+  assert.equal(uniqueDetailed([{...block,startTime:'08:00',endTime:'15:00'},{...block,startTime:'09:00',endTime:'16:00'}]).length,2);
+});
+
+test('blue ruled tables split local subrows instead of merging courses across parity rows',()=>{
+  const width=820,height=600,data=new Uint8ClampedArray(width*height*4).fill(255),line=(x0,x1,y)=>{for(let x=x0;x<x1;x++){const i=(y*width+x)*4;data.set([180,210,230,255],i);}};
+  for(const y of [50,180,400,500])line(0,810,y);line(210,310,290);
+  const word=(text,x,y)=>({text,confidence:90,bbox:{x0:x,y0:y,x1:x+50,y1:y+12}}),axisRows=[{text:'1-2节',bbox:{y0:100,y1:120}},{text:'3-4节',bbox:{y0:280,y1:300}}],words=[word('数学',120,80),word('安全导论单',220,200),word('安全导论双',220,320)],cells=ruledCells({firstX:160,spacing:100,top:30,axisRows,words},{width,height,data});
+  assert.equal(cells.length,3);assert.deepEqual(cells.map(cell=>[cell.weekday,cell.band.periodStart,cell.band.periodEnd]),[[1,1,2],[2,3,4],[2,3,4]]);
 });
